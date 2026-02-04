@@ -109,6 +109,12 @@
     }
 
     var convSvg=hasConv ? '<path d="'+convPath+'" fill="none" stroke="#d97900" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>' : '';
+    var legendHtml=hasConv
+      ? ('<div class="oa-chart-legend">'
+        +'<span><i style="background:#1f6feb"></i>Views</span>'
+        +'<span><i style="background:#d97900"></i>Conversions</span>'
+        +'</div>')
+      : '';
     el.innerHTML=''
       +'<div class="oa-chart-shell">'
       +'<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none" aria-hidden="true">'
@@ -125,10 +131,7 @@
       +convAxis
       +'</svg>'
       +'</div>'
-      +'<div class="oa-chart-legend">'
-      +'<span><i style="background:#1f6feb"></i>Views</span>'
-      +(hasConv ? '<span><i style="background:#d97900"></i>Conversions</span>' : '')
-      +'</div>';
+      +legendHtml;
   }
 
   function initTrendChart(){
