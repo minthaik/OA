@@ -410,7 +410,14 @@ class OA_Admin {
       $redirect_args[$k]=sanitize_text_field(wp_unslash((string)$v));
     }
     $redirect_args['oa_seg_notice']=$notice;
-    wp_safe_redirect(add_query_arg($redirect_args,admin_url('admin.php')));
+    $redirect_url=add_query_arg($redirect_args,admin_url('admin.php'));
+    if (!headers_sent()){
+      wp_safe_redirect($redirect_url);
+      exit;
+    }
+    // Fallback when output has started (some admin stacks print early styles/notices).
+    echo '<script>window.location.replace('.wp_json_encode($redirect_url).');</script>';
+    echo '<noscript><meta http-equiv="refresh" content="0;url='.esc_url($redirect_url).'"></noscript>';
     exit;
   }
   private static function filter_inputs($scope='traffic'){
