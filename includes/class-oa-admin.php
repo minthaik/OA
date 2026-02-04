@@ -206,6 +206,8 @@ class OA_Admin {
         'visibility'=>$visibility,
         'owner_id'=>$owner_id,
         'created_at'=>sanitize_text_field((string)($row['created_at'] ?? '')),
+        'last_used'=>sanitize_text_field((string)($row['last_used'] ?? '')),
+        'usage_count'=>max(0,intval($row['usage_count'] ?? 0)),
       ];
     }
     return $out;
@@ -253,11 +255,48 @@ class OA_Admin {
           'visibility'=>$visibility,
           'owner_id'=>$owner_id,
           'created_at'=>sanitize_text_field((string)($row['created_at'] ?? current_time('mysql'))),
+          'last_used'=>sanitize_text_field((string)($row['last_used'] ?? '')),
+          'usage_count'=>max(0,intval($row['usage_count'] ?? 0)),
         ];
       }
       if (count($out[$scope])>120) $out[$scope]=array_slice($out[$scope],-120);
     }
     return $out;
+  }
+  private static function touch_segment_usage($scope,$segment_id){
+    if ($segment_id==='') return false;
+    $store=self::get_segments_store();
+    if (empty($store[$scope]) || !is_array($store[$scope])) return false;
+    $rows=$store[$scope];
+    $changed=false;
+    foreach($rows as $i=>$row){
+      if (!is_array($row)) continue;
+      $id=sanitize_key((string)($row['id'] ?? ''));
+      if ($id!==$segment_id) continue;
+      $rows[$i]['last_used']=current_time('mysql');
+      $rows[$i]['usage_count']=max(0,intval($row['usage_count'] ?? 0))+1;
+      $changed=true;
+      break;
+    }
+    if (!$changed) return false;
+    $store[$scope]=$rows;
+    update_option('oa_saved_segments',$store,false);
+    return true;
+  }
+  private static function quick_segments($segments,$limit=6){
+    $rows=array_values((array)$segments);
+    usort($rows,function($a,$b){
+      $a_count=max(0,intval($a['usage_count'] ?? 0));
+      $b_count=max(0,intval($b['usage_count'] ?? 0));
+      if ($a_count!==$b_count) return ($b_count <=> $a_count);
+      $a_last=strtotime((string)($a['last_used'] ?? '')) ?: 0;
+      $b_last=strtotime((string)($b['last_used'] ?? '')) ?: 0;
+      if ($a_last!==$b_last) return ($b_last <=> $a_last);
+      $a_created=strtotime((string)($a['created_at'] ?? '')) ?: 0;
+      $b_created=strtotime((string)($b['created_at'] ?? '')) ?: 0;
+      return ($b_created <=> $a_created);
+    });
+    return array_slice($rows,0,max(1,intval($limit)));
   }
   private static function count_segments_store($store){
     $n=0;
@@ -329,6 +368,8 @@ class OA_Admin {
             'visibility'=>$visibility,
             'owner_id'=>intval(get_current_user_id()),
             'created_at'=>current_time('mysql'),
+            'last_used'=>'',
+            'usage_count'=>0,
           ];
           if (count($segments)>40) $segments=array_slice($segments,-40);
           self::save_segments($scope,$segments);
@@ -401,6 +442,9 @@ class OA_Admin {
     if (!$selected_segment || !self::find_segment($segments,$selected_segment)) $selected_segment='';
     $default_segment_id=self::get_default_segment_id($scope);
     if ($default_segment_id!=='' && !self::find_segment($segments,$default_segment_id)) $default_segment_id='';
+    if ($selected_segment!=='' && self::touch_segment_usage($scope,$selected_segment)){
+      $segments=self::get_segments($scope);
+    }
     $preserve_keys=['page','from','to','oa_range'];
     $hidden=[];
     foreach($preserve_keys as $k){
@@ -417,7 +461,7 @@ class OA_Admin {
     $active_label=$active_count>0 ? ($active_count.' active') : 'No active filters';
     $notice_code=isset($_GET['oa_seg_notice']) ? sanitize_key($_GET['oa_seg_notice']) : '';
     $notice_text=self::segment_notice_message($notice_code);
-    $quick_segments=array_values(array_reverse(array_slice($segments,-5)));
+    $quick_segments=self::quick_segments($segments,6);
     ob_start();
     echo '<div class="oa-filter-strip">';
     if (!empty($quick_segments)){

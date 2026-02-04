@@ -11,6 +11,7 @@ Privacy-first, lightweight, local-first analytics for WordPress.
 - Campaign CSV exports include attribution metadata for auditability
 - Saved views (segments) for reusable report filters (shared/private + per-user default view)
 - Quick saved-view chips for one-click filtering across report pages
+- Usage-ranked saved views (last used + usage count) to surface favorites first
 - Segment migration tools (export/import merge/replace)
 - WooCommerce revenue aggregation (optional)
 - WooCommerce coupon analytics (orders, discount, attributed revenue)

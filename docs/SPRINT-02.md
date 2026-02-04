@@ -36,6 +36,7 @@ This sprint starts Phase 2 (analytics depth) by making cross-report filtering re
 - [x] UTM attribution modes in Settings + tracker (`first_touch` / `last_touch`)
 - [x] Campaign report attribution badge + export metadata contract
 - [x] Quick saved-view chips near filter bar for one-click segment switching
+- [x] Segment usage metadata (`usage_count`, `last_used`) and usage-ranked quick chips
 
 ## Validation
 - PHP lint passed:

@@ -14,6 +14,7 @@ This document is the execution path to take the plugin from current state to a c
 - CSV export API and email reports.
 - Saved views with shared/private visibility, per-user defaults, and import/export migration.
 - Quick saved-view chips in report filter bars for one-click segment switching.
+- Segment usage metadata to rank/favorite frequently used views.
 - Attribution mode selector for campaign crediting (first touch / last touch).
 - Campaign exports include attribution metadata for downstream BI audit trails.
 - Modernized admin UI foundation.
