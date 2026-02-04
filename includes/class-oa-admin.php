@@ -417,8 +417,26 @@ class OA_Admin {
     $active_label=$active_count>0 ? ($active_count.' active') : 'No active filters';
     $notice_code=isset($_GET['oa_seg_notice']) ? sanitize_key($_GET['oa_seg_notice']) : '';
     $notice_text=self::segment_notice_message($notice_code);
+    $quick_segments=array_values(array_reverse(array_slice($segments,-5)));
     ob_start();
-    echo '<div class="oa-filter-strip"><details class="oa-filter-panel"'.$open.'>';
+    echo '<div class="oa-filter-strip">';
+    if (!empty($quick_segments)){
+      echo '<div class="oa-quick-segments" role="group" aria-label="Quick saved views">';
+      foreach($quick_segments as $seg){
+        $quick_args=$reset_args;
+        $quick_args['oa_segment']=(string)$seg['id'];
+        $quick_url=add_query_arg($quick_args,admin_url('admin.php'));
+        $classes='oa-quick-segment';
+        if ($selected_segment===(string)$seg['id']) $classes.=' is-active';
+        if ($default_segment_id===(string)$seg['id']) $classes.=' is-default';
+        echo '<a class="'.esc_attr($classes).'" href="'.esc_url($quick_url).'">'.esc_html($seg['name']).'</a>';
+      }
+      if ($selected_segment!==''){
+        echo '<a class="oa-quick-segment oa-quick-segment-clear" href="'.esc_url($reset_url).'">Clear</a>';
+      }
+      echo '</div>';
+    }
+    echo '<details class="oa-filter-panel"'.$open.'>';
     echo '<summary><span>Advanced filters</span><span class="oa-filter-meta">'.esc_html($active_label).'</span></summary>';
     if ($notice_text!=='') echo '<p class="oa-filter-notice">'.esc_html($notice_text).'</p>';
     echo '<form method="get" class="oa-range-form oa-filter-form">';
