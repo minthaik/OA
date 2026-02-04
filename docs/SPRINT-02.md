@@ -33,6 +33,8 @@ This sprint starts Phase 2 (analytics depth) by making cross-report filtering re
   - [x] Import segments (replace)
 - [x] Segment operation notices (saved/deleted/default/errors)
 - [x] Segment control UI polish in `assets/admin.css`
+- [x] UTM attribution modes in Settings + tracker (`first_touch` / `last_touch`)
+- [x] Campaign report attribution badge + export metadata contract
 
 ## Validation
 - PHP lint passed:
@@ -45,4 +47,4 @@ This sprint starts Phase 2 (analytics depth) by making cross-report filtering re
 ## Next sprint candidates
 - Add audit metadata (last used, usage count) for segment lifecycle cleanup.
 - Add quick favorite-segment chips near the filter bar.
-- Start attribution mode implementation (first-touch / last-touch).
+- Add attribution model metadata to report headers/exports for clearer auditability.

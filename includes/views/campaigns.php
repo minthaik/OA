@@ -7,7 +7,10 @@
   </div>
   <div class="oa-card">
     <div class="oa-card-head">
-      <div class="oa-card-h">Top campaigns</div>
+      <div class="oa-card-h">
+        Top campaigns
+        <span class="oa-badge oa-badge-muted">Attribution: <?php echo esc_html($attribution_mode==='last_touch' ? 'Last touch' : 'First touch'); ?></span>
+      </div>
       <div class="oa-card-tools"><button type="button" class="button" data-oa-export="campaigns" data-from="<?php echo esc_attr($from); ?>" data-to="<?php echo esc_attr($to); ?>">Export CSV</button></div>
     </div>
     <table class="widefat striped">
@@ -27,6 +30,6 @@
       <?php endforeach; endif; ?>
       </tbody>
     </table>
-    <p class="description">Campaigns appear when UTM parameters exist. Conversions/value require goals.</p>
+    <p class="description">Campaigns appear when UTM parameters exist. Conversions/value require goals. Export includes attribution mode metadata.</p>
   </div>
 </div>

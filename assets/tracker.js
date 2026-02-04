@@ -66,36 +66,56 @@
     if(t<=0) return true;
     return (nowTs()-t) > (days*24*60*60);
   }
-  function readStoredUtm(){
+  function readStoredUtmByKey(localKey, cookieKey){
     var days=Math.max(1, parseInt(cfg.utmAttributionDays,10) || 30);
     var local='';
     try{
-      local=window.localStorage ? window.localStorage.getItem('oa_utm_first_touch') : '';
+      local=window.localStorage ? window.localStorage.getItem(localKey) : '';
     }catch(e){ local=''; }
     var parsed=parseStoredUtm(local);
     if(!parsed){
-      parsed=parseStoredUtm(getCookie('oa_utm_ft'));
+      parsed=parseStoredUtm(getCookie(cookieKey));
     }
     if(!parsed || isExpired(parsed.ts, days)) return null;
     return parsed.v;
   }
-  function storeUtm(val){
+  function storeUtmByKey(val, localKey, cookieKey){
     if(!val) return;
     var payload=JSON.stringify({v:val,ts:nowTs()});
     var days=Math.max(1, parseInt(cfg.utmAttributionDays,10) || 30);
     try{
-      if(window.localStorage) window.localStorage.setItem('oa_utm_first_touch', payload);
+      if(window.localStorage) window.localStorage.setItem(localKey, payload);
     }catch(e){}
-    setCookie('oa_utm_ft', payload, days);
+    setCookie(cookieKey, payload, days);
   }
-  var firstTouchUtm=readStoredUtm();
-  function utm(){
+  var attrMode=(cfg.attributionMode==='last_touch') ? 'last_touch' : 'first_touch';
+  var firstTouchUtm=readStoredUtmByKey('oa_utm_first_touch','oa_utm_ft');
+  var lastTouchUtm=readStoredUtmByKey('oa_utm_last_touch','oa_utm_lt');
+  function applyAttributionFromUrl(){
     var fromUrl=utmFromUrl();
-    if(fromUrl && !firstTouchUtm){
-      firstTouchUtm=fromUrl;
-      storeUtm(firstTouchUtm);
+    if(!fromUrl) return;
+    if(attrMode==='last_touch'){
+      lastTouchUtm=fromUrl;
+      storeUtmByKey(lastTouchUtm,'oa_utm_last_touch','oa_utm_lt');
+      if(!firstTouchUtm){
+        firstTouchUtm=fromUrl;
+        storeUtmByKey(firstTouchUtm,'oa_utm_first_touch','oa_utm_ft');
+      }
+      return;
     }
-    return firstTouchUtm;
+    if(!firstTouchUtm){
+      firstTouchUtm=fromUrl;
+      storeUtmByKey(firstTouchUtm,'oa_utm_first_touch','oa_utm_ft');
+    }
+    if(!lastTouchUtm){
+      lastTouchUtm=fromUrl;
+      storeUtmByKey(lastTouchUtm,'oa_utm_last_touch','oa_utm_lt');
+    }
+  }
+  function utm(){
+    applyAttributionFromUrl();
+    if(attrMode==='last_touch') return lastTouchUtm || firstTouchUtm || null;
+    return firstTouchUtm || lastTouchUtm || null;
   }
   function send(payload){
     if(!hasConsent()) return;

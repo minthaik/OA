@@ -63,6 +63,7 @@ class OA_Admin {
     $out['rate_limit_per_min']=max(10,intval($in['rate_limit_per_min'] ?? 120));
     $out['retention_days']=max(30,intval($in['retention_days'] ?? 180));
     $out['utm_attribution_days']=max(1,min(365,intval($in['utm_attribution_days'] ?? 30)));
+    $out['attribution_mode']=in_array(($in['attribution_mode'] ?? 'first_touch'),['first_touch','last_touch'],true)?$in['attribution_mode']:'first_touch';
     $out['anomaly_threshold_pct']=max(10,min(90,intval($in['anomaly_threshold_pct'] ?? 35)));
     $out['anomaly_baseline_days']=max(3,min(30,intval($in['anomaly_baseline_days'] ?? 7)));
     $out['anomaly_min_views']=max(10,intval($in['anomaly_min_views'] ?? 60));
@@ -531,6 +532,8 @@ class OA_Admin {
     $can_manage=self::can_manage();
     list($from,$to,$range_html)=self::range_inputs();
     list($filters,$filters_html)=self::filter_inputs('campaigns');
+    $opt=get_option('oa_settings',[]);
+    $attribution_mode=in_array(($opt['attribution_mode'] ?? 'first_touch'),['first_touch','last_touch'],true)?$opt['attribution_mode']:'first_touch';
     $rows=OA_Reports::campaigns($from,$to,$filters);
     include OA_PLUGIN_DIR.'includes/views/campaigns.php';
   }

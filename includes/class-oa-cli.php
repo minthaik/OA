@@ -180,6 +180,43 @@ class OA_CLI {
         'detail'=>$cap_detail,
       ];
 
+      $opt=get_option('oa_settings',[]);
+      $attr_mode=in_array(($opt['attribution_mode'] ?? 'first_touch'),['first_touch','last_touch'],true)?$opt['attribution_mode']:'first_touch';
+      $attr_valid=in_array($attr_mode,['first_touch','last_touch'],true);
+      $tests[]=[
+        'id'=>'attribution_mode_setting',
+        'label'=>'Attribution mode setting',
+        'result'=>($attr_valid ? 'pass' : 'fail'),
+        'detail'=>($attr_valid ? ('Configured as '.$attr_mode) : 'Invalid attribution mode setting'),
+      ];
+
+      $export_attr_mode='';
+      $export_ok=false;
+      if (class_exists('WP_REST_Request')){
+        $request=new WP_REST_Request('GET','/ordelix-analytics/v1/export');
+        $request->set_param('type','campaigns');
+        $request->set_param('from',$from);
+        $request->set_param('to',$to);
+        $response=OA_REST::export($request);
+        if ($response instanceof WP_REST_Response){
+          $payload=(array)$response->get_data();
+          $export_attr_mode=sanitize_key((string)($payload['meta']['attribution_mode'] ?? ''));
+          $export_ok=(
+            !empty($payload['ok'])
+            && isset($payload['meta'])
+            && is_array($payload['meta'])
+            && in_array($export_attr_mode,['first_touch','last_touch'],true)
+            && $export_attr_mode===$attr_mode
+          );
+        }
+      }
+      $tests[]=[
+        'id'=>'campaign_export_metadata',
+        'label'=>'Campaign export attribution metadata',
+        'result'=>($export_ok ? 'pass' : 'fail'),
+        'detail'=>($export_ok ? ('meta.attribution_mode='.$export_attr_mode) : 'Campaign export metadata is missing/invalid'),
+      ];
+
       $summary=self::summarize_tests($tests);
       if ($format==='json'){
         WP_CLI::line(wp_json_encode([

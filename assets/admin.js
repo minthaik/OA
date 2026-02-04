@@ -160,10 +160,21 @@
     return s;
   }
 
-  function rowsToCsv(rows){
+  function appendExportMeta(lines, meta){
+    if(!meta || typeof meta!=='object') return;
+    Object.keys(meta).forEach(function(key){
+      var value=meta[key];
+      if(value===null || typeof value==='undefined' || value==='') return;
+      lines.push('# '+key+': '+String(value));
+    });
+  }
+
+  function rowsToCsv(rows, meta){
     if(!rows || !rows.length) return '';
     var headers=Object.keys(rows[0]);
-    var lines=[headers.join(',')];
+    var lines=[];
+    appendExportMeta(lines, meta);
+    lines.push(headers.join(','));
     rows.forEach(function(row){
       lines.push(headers.map(function(key){ return csvEscape(row[key]); }).join(','));
     });
@@ -216,15 +227,21 @@
     .then(function(res){ return res.json(); })
     .then(function(payload){
       if(!payload || !payload.ok || !Array.isArray(payload.rows)) throw new Error('Export failed');
-      return payload.rows;
+      return {
+        rows:payload.rows,
+        meta:(payload.meta && typeof payload.meta==='object') ? payload.meta : {}
+      };
     });
   }
 
   function buildAllDatasetBundle(datasets){
     var lines=[];
     Object.keys(datasets).forEach(function(type){
-      var rows=datasets[type];
+      var set=datasets[type] || {};
+      var rows=Array.isArray(set.rows) ? set.rows : [];
+      var meta=(set.meta && typeof set.meta==='object') ? set.meta : {};
       lines.push('# dataset: '+type);
+      appendExportMeta(lines, meta);
       if(!rows.length){
         lines.push('# empty');
         lines.push('');
@@ -286,11 +303,12 @@
         btn.dataset.originalLabel=btn.dataset.originalLabel || btn.textContent;
         btn.textContent='Exporting...';
         fetchExportRows(type, from, to)
-        .then(function(rows){
+        .then(function(result){
+          var rows=result.rows || [];
           if(!rows.length){ alert('No rows available for this range.'); return; }
           var slug=(cfg.siteSlug || 'ordelix').replace(/[^a-z0-9-]/g,'');
           var filename=[slug,type,from,to].filter(Boolean).join('_')+'.csv';
-          downloadCsv(filename, rowsToCsv(rows));
+          downloadCsv(filename, rowsToCsv(rows, result.meta || {}));
         })
         .catch(function(){ alert('Could not export CSV. Please try again.'); })
         .finally(function(){
@@ -310,11 +328,15 @@
         btn.dataset.originalLabel=btn.dataset.originalLabel || btn.textContent;
         btn.textContent='Exporting all...';
         Promise.all(types.map(function(type){
-          return fetchExportRows(type, from, to).then(function(rows){ return {type:type, rows:rows}; });
+          return fetchExportRows(type, from, to).then(function(result){
+            return {type:type, rows:result.rows || [], meta:result.meta || {}};
+          });
         }))
         .then(function(results){
           var data={};
-          results.forEach(function(item){ data[item.type]=item.rows; });
+          results.forEach(function(item){
+            data[item.type]={rows:item.rows || [], meta:item.meta || {}};
+          });
           var slug=(cfg.siteSlug || 'ordelix').replace(/[^a-z0-9-]/g,'');
           var filename=[slug,'all-datasets',from,to].filter(Boolean).join('_')+'.csv';
           downloadCsv(filename, buildAllDatasetBundle(data));

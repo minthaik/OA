@@ -17,6 +17,7 @@ class OA_Tracker {
       'autoMailto'=>!empty($opt['auto_mailto']),
       'autoForms'=>!empty($opt['auto_forms']),
       'utmAttributionDays'=>max(1,min(365,intval($opt['utm_attribution_days'] ?? 30))),
+      'attributionMode'=>in_array(($opt['attribution_mode'] ?? 'first_touch'),['first_touch','last_touch'],true)?$opt['attribution_mode']:'first_touch',
       'consentMode'=>sanitize_key($opt['consent_mode'] ?? 'off'),
       'consentCookie'=>sanitize_key($opt['consent_cookie'] ?? 'oa_consent'),
       'optoutCookie'=>sanitize_key($opt['optout_cookie'] ?? 'oa_optout'),

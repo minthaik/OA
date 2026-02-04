@@ -40,12 +40,20 @@
         <label class="oa-toggle"><input type="checkbox" name="oa_settings[respect_dnt]" value="1" <?php checked(!empty($opt['respect_dnt'])); ?>> Respect Do Not Track</label>
         <label class="oa-toggle"><input type="checkbox" name="oa_settings[approx_uniques]" value="1" <?php checked(!empty($opt['approx_uniques'])); ?>> Approx uniques (privacy-friendly IP hash)</label>
       </div>
-      <div class="oa-form-row">
+      <div class="oa-form-row oa-form-row-tracking">
         <label>Sampling (1 out of N) <input type="number" min="1" name="oa_settings[sample_rate]" value="<?php echo esc_attr($opt['sample_rate'] ?? 1); ?>"></label>
         <label>Rate limit (per IP / minute) <input type="number" min="10" name="oa_settings[rate_limit_per_min]" value="<?php echo esc_attr($opt['rate_limit_per_min'] ?? 120); ?>"></label>
         <label>Retention days <input type="number" min="30" name="oa_settings[retention_days]" value="<?php echo esc_attr($opt['retention_days'] ?? 180); ?>"></label>
         <label>UTM attribution days <input type="number" min="1" max="365" name="oa_settings[utm_attribution_days]" value="<?php echo esc_attr($opt['utm_attribution_days'] ?? 30); ?>"></label>
+        <label>Attribution mode
+          <select name="oa_settings[attribution_mode]">
+            <?php $attribution_mode = in_array(($opt['attribution_mode'] ?? 'first_touch'), ['first_touch','last_touch'], true) ? $opt['attribution_mode'] : 'first_touch'; ?>
+            <option value="first_touch" <?php selected($attribution_mode, 'first_touch'); ?>>First touch</option>
+            <option value="last_touch" <?php selected($attribution_mode, 'last_touch'); ?>>Last touch</option>
+          </select>
+        </label>
       </div>
+      <p class="oa-muted">Choose how campaign conversion credit is assigned: first landing UTM or most recent UTM before conversion.</p>
     </div>
 
     <div class="oa-card oa-tab-panel oa-settings-panel" data-tab-panel="privacy" id="oa-panel-privacy" role="tabpanel" aria-labelledby="oa-tab-privacy" hidden>

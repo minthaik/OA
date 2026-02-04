@@ -8,11 +8,13 @@ This document is the execution path to take the plugin from current state to a c
 - Reliable data pipeline with explainable metrics.
 - Strong operational safety (migrations, retention, compliance, monitoring).
 
-## Current baseline (as of v0.4.8)
+## Current baseline (as of v0.4.9)
 - Dashboard, insights, anomalies, goals, funnels, campaigns.
 - WooCommerce revenue and coupon analytics.
 - CSV export API and email reports.
 - Saved views with shared/private visibility, per-user defaults, and import/export migration.
+- Attribution mode selector for campaign crediting (first touch / last touch).
+- Campaign exports include attribution metadata for downstream BI audit trails.
 - Modernized admin UI foundation.
 - Regression smoke harness via WP-CLI (`regression-smoke`) and PowerShell runner.
 - Active sprint logs: `docs/SPRINT-01.md`, `docs/SPRINT-02.md`
@@ -166,7 +168,7 @@ Priority: P2
 ## P1
 - [ ] Global filters and saved segments.
 - [ ] Funnel diagnostics and retention reporting.
-- [ ] Attribution modes.
+- [x] Attribution modes.
 - [ ] Commerce intelligence drilldowns.
 
 ## P2

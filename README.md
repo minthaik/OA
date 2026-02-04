@@ -1,4 +1,4 @@
-# Ordelix Analytics (v0.4.8)
+# Ordelix Analytics (v0.4.9)
 Privacy-first, lightweight, local-first analytics for WordPress.
 
 ## Features
@@ -7,6 +7,8 @@ Privacy-first, lightweight, local-first analytics for WordPress.
 - Goals (page or event) + value attribution
 - Funnels (multi-step page/event)
 - Campaigns (UTM source/medium/campaign) with conversions/value
+- Attribution mode controls (first-touch / last-touch)
+- Campaign CSV exports include attribution metadata for auditability
 - Saved views (segments) for reusable report filters (shared/private + per-user default view)
 - Segment migration tools (export/import merge/replace)
 - WooCommerce revenue aggregation (optional)
