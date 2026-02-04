@@ -120,6 +120,7 @@ class OA_Admin {
     echo '<div class="oa-range-actions">';
     echo '<button class="button button-primary" type="submit">Apply</button>';
     echo '<button type="button" class="button oa-button-quiet" data-oa-copy-link>Copy link</button>';
+    echo '<span class="oa-advanced-slot" data-oa-advanced-slot></span>';
     echo '</div></form></div>';
     $html=ob_get_clean();
     return [$from,$to,$html];
@@ -470,7 +471,7 @@ class OA_Admin {
     $notice_text=self::segment_notice_message($notice_code);
     $quick_segments=self::quick_segments($segments,6);
     ob_start();
-    echo '<div class="oa-filter-strip">';
+    echo '<div class="oa-filter-strip" data-oa-advanced-panel>';
     if (!empty($quick_segments)){
       echo '<div class="oa-quick-segments" role="group" aria-label="Quick saved views">';
       foreach($quick_segments as $seg){

@@ -274,6 +274,15 @@
     });
   }
 
+  function initAdvancedFilterDock(){
+    document.querySelectorAll('.oa-controls').forEach(function(ctrl){
+      var slot=ctrl.querySelector('[data-oa-advanced-slot]');
+      var panel=ctrl.querySelector('[data-oa-advanced-panel]');
+      if(!slot || !panel) return;
+      slot.appendChild(panel);
+    });
+  }
+
   function initCopySqlButtons(){
     document.querySelectorAll('[data-oa-copy-sql]').forEach(function(btn){
       btn.addEventListener('click', function(){
@@ -491,6 +500,7 @@
   }
 
   $(function(){
+    initAdvancedFilterDock();
     hideThirdPartyNotices();
     initTabs();
     initCopyLinkButtons();
