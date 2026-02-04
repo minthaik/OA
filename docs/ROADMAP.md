@@ -19,6 +19,7 @@ This document is the execution path to take the plugin from current state to a c
 - Campaign exports include attribution metadata for downstream BI audit trails.
 - Funnel diagnostics surfaced in UI (step drop-off and period trend delta).
 - Retention basics page (new vs returning visitor signals + return-gap profile).
+- Health storage footprint checks + table optimization action.
 - Modernized admin UI foundation.
 - Regression smoke harness via WP-CLI (`regression-smoke`) and PowerShell runner.
 - Active sprint logs: `docs/SPRINT-01.md`, `docs/SPRINT-02.md`

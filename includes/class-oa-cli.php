@@ -13,7 +13,7 @@ class OA_CLI {
    * ## OPTIONS
    *
    * <action>
-   * : Action to run: health|cleanup|cache-flush|schema-repair|cron-reschedule|caps-repair|diagnostics|self-test|regression-smoke|data-export|data-erase-range|data-erase-all
+   * : Action to run: health|cleanup|cache-flush|schema-repair|cron-reschedule|caps-repair|table-optimize|diagnostics|self-test|regression-smoke|data-export|data-erase-range|data-erase-all
    *
    * [--format=<format>]
    * : Output format for read actions. json|table
@@ -62,6 +62,13 @@ class OA_CLI {
     if ($action==='caps-repair'){
       OA_Admin::ensure_caps();
       WP_CLI::success('Capabilities repaired.');
+      return;
+    }
+    if ($action==='table-optimize'){
+      $res=OA_Reports::optimize_tables();
+      $msg='Tables optimized: '.intval($res['optimized'] ?? 0).'; skipped: '.intval($res['skipped'] ?? 0).'.';
+      if (!empty($res['failed'])) $msg.=' Failed: '.implode(', ',(array)$res['failed']).'.';
+      WP_CLI::success($msg);
       return;
     }
     if ($action==='health'){
@@ -279,7 +286,7 @@ class OA_CLI {
       return;
     }
 
-    WP_CLI::error('Unknown action. Use: health, cleanup, cache-flush, schema-repair, cron-reschedule, caps-repair, diagnostics, self-test, regression-smoke, data-export, data-erase-range, data-erase-all');
+    WP_CLI::error('Unknown action. Use: health, cleanup, cache-flush, schema-repair, cron-reschedule, caps-repair, table-optimize, diagnostics, self-test, regression-smoke, data-export, data-erase-range, data-erase-all');
   }
 
   private static function summarize_tests($tests){

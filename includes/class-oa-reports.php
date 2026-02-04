@@ -674,17 +674,28 @@ class OA_Reports {
     $tables=method_exists('OA_DB','expected_table_names') ? OA_DB::expected_table_names() : ['daily_pages','daily_referrers','daily_events','daily_campaigns','goals','daily_goals','funnels','funnel_steps','daily_funnels','daily_revenue','daily_coupons'];
     $table_rows=[];
     $missing_tables=[];
+    $total_storage_bytes=0;
+    $largest_table=['name'=>'-','bytes'=>0,'rows'=>0];
     foreach($tables as $name){
       $tbl=$pfx.$name;
       $exists=((string)$wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s",$tbl))===$tbl);
       $rows=null;
+      $size_bytes=0;
       if ($exists){
         $count=$wpdb->get_var("SELECT COUNT(*) FROM {$tbl}");
         $rows=($count===null) ? null : intval($count);
+        $status_row=$wpdb->get_row($wpdb->prepare("SHOW TABLE STATUS LIKE %s",$tbl), ARRAY_A);
+        if (is_array($status_row)){
+          $size_bytes=max(0,intval($status_row['Data_length'] ?? 0))+max(0,intval($status_row['Index_length'] ?? 0));
+          $total_storage_bytes+=$size_bytes;
+          if ($size_bytes>$largest_table['bytes']){
+            $largest_table=['name'=>$name,'bytes'=>$size_bytes,'rows'=>intval($rows ?? 0)];
+          }
+        }
       } else {
         $missing_tables[]=$name;
       }
-      $table_rows[]=['name'=>$name,'exists'=>$exists,'rows'=>$rows];
+      $table_rows[]=['name'=>$name,'exists'=>$exists,'rows'=>$rows,'size_bytes'=>$size_bytes];
     }
     $cron_ts=wp_next_scheduled(self::CRON_HOOK);
     $opt=get_option('oa_settings',[]);
@@ -735,6 +746,20 @@ class OA_Reports {
       'label'=>'Retention policy',
       'status'=>($retention>1095 ? 'warn' : 'ok'),
       'detail'=>'Retention set to '.$retention.' day(s).',
+    ];
+    $total_storage_mb=round($total_storage_bytes/(1024*1024),1);
+    $largest_mb=round(floatval($largest_table['bytes'])/(1024*1024),1);
+    $storage_status='ok';
+    if ($total_storage_mb>1024.0){
+      $storage_status='fail';
+    } elseif ($total_storage_mb>256.0){
+      $storage_status='warn';
+    }
+    $checks[]=[
+      'key'=>'table_storage',
+      'label'=>'Analytics table storage',
+      'status'=>$storage_status,
+      'detail'=>'Total '.number_format_i18n($total_storage_mb,1).' MB; largest '.$largest_table['name'].' ('.number_format_i18n($largest_mb,1).' MB, '.number_format_i18n(intval($largest_table['rows'] ?? 0)).' rows).',
     ];
     $cap_fail=[]; $cap_warn=[];
     $admin_role=get_role('administrator');
@@ -789,11 +814,34 @@ class OA_Reports {
       'last_report_sent'=>intval(get_option('oa_last_report_sent',0)),
       'last_anomaly_alert_day'=>(string)get_option('oa_last_anomaly_alert_day',''),
       'last_7d'=>$last_7d,
+      'storage_total_bytes'=>$total_storage_bytes,
+      'storage_largest'=>$largest_table,
       'checks'=>$checks,
       'migration_log'=>method_exists('OA_DB','get_migration_log') ? OA_DB::get_migration_log(12) : [],
       'schema_audit'=>$schema_audit,
       'tables'=>$table_rows,
     ];
+  }
+
+  public static function optimize_tables(){
+    global $wpdb; $pfx=$wpdb->prefix.'oa_';
+    $tables=method_exists('OA_DB','expected_table_names') ? OA_DB::expected_table_names() : self::analytics_daily_tables();
+    $optimized=0;
+    $skipped=0;
+    $failed=[];
+    foreach((array)$tables as $name){
+      $tbl=$pfx.$name;
+      $exists=((string)$wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s",$tbl))===$tbl);
+      if (!$exists){ $skipped++; continue; }
+      $wpdb->get_results("OPTIMIZE TABLE {$tbl}", ARRAY_A);
+      if (!empty($wpdb->last_error)){
+        $failed[]=$name;
+        $wpdb->last_error='';
+      } else {
+        $optimized++;
+      }
+    }
+    return ['optimized'=>$optimized,'skipped'=>$skipped,'failed'=>$failed];
   }
 
   public static function flush_dashboard_cache(){

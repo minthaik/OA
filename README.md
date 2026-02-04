@@ -54,6 +54,7 @@ window.ordelixTrack('quote_submit', {meta:'form=quote', value: 0});
   - `wp ordelix schema-repair`
   - `wp ordelix cron-reschedule`
   - `wp ordelix caps-repair`
+  - `wp ordelix table-optimize`
 - Compliance:
   - `wp ordelix data-export --from=YYYY-MM-DD --to=YYYY-MM-DD --format=json`
   - `wp ordelix data-erase-range --from=YYYY-MM-DD --to=YYYY-MM-DD`

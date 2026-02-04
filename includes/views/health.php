@@ -8,6 +8,7 @@ $views_7d=(int)($health['last_7d']['views'] ?? 0);
 $conv_7d=(int)($health['last_7d']['conversions'] ?? 0);
 $rev_7d=(float)($health['last_7d']['revenue'] ?? 0.0);
 $cr_7d=$views_7d>0 ? (($conv_7d/$views_7d)*100.0) : 0.0;
+$storage_total_mb=round((float)($health['storage_total_bytes'] ?? 0)/(1024*1024),1);
 ?>
 <div class="wrap oa-wrap oa-page-health">
   <div class="oa-hero">
@@ -52,6 +53,11 @@ $cr_7d=$views_7d>0 ? (($conv_7d/$views_7d)*100.0) : 0.0;
       <div class="oa-kpi-value"><?php echo esc_html(number_format_i18n($rev_7d,2)); ?></div>
       <div class="oa-kpi-foot">From daily revenue table</div>
     </div>
+    <div class="oa-card oa-kpi-card oa-kpi-tone-indigo">
+      <div class="oa-kpi-top"><span class="oa-kpi-label">Storage footprint</span></div>
+      <div class="oa-kpi-value"><?php echo esc_html(number_format_i18n($storage_total_mb,1)); ?> MB</div>
+      <div class="oa-kpi-foot">Analytics tables only</div>
+    </div>
   </div>
 
   <div class="oa-grid oa-2">
@@ -82,6 +88,11 @@ $cr_7d=$views_7d>0 ? (($conv_7d/$views_7d)*100.0) : 0.0;
         <?php wp_nonce_field('oa_health'); ?>
         <input type="hidden" name="oa_health_action" value="repair_caps">
         <button type="submit" class="button">Repair capabilities</button>
+      </form>
+      <form method="post" class="oa-form-actions">
+        <?php wp_nonce_field('oa_health'); ?>
+        <input type="hidden" name="oa_health_action" value="optimize_tables">
+        <button type="submit" class="button">Optimize analytics tables</button>
       </form>
       <form method="post" class="oa-form-actions">
         <?php wp_nonce_field('oa_health'); ?>
@@ -166,7 +177,7 @@ $cr_7d=$views_7d>0 ? (($conv_7d/$views_7d)*100.0) : 0.0;
   <div class="oa-card">
     <div class="oa-card-h">Table integrity</div>
     <table class="widefat striped">
-      <thead><tr><th>Table</th><th>Status</th><th>Rows</th></tr></thead>
+      <thead><tr><th>Table</th><th>Status</th><th>Rows</th><th>Size</th></tr></thead>
       <tbody>
       <?php foreach($health['tables'] as $t): ?>
         <tr>
@@ -179,6 +190,7 @@ $cr_7d=$views_7d>0 ? (($conv_7d/$views_7d)*100.0) : 0.0;
             <?php endif; ?>
           </td>
           <td><?php echo !empty($t['exists']) ? esc_html(number_format_i18n((int)$t['rows'])) : '-'; ?></td>
+          <td><?php echo !empty($t['exists']) ? esc_html(number_format_i18n(round(((int)($t['size_bytes'] ?? 0))/(1024*1024),1),1).' MB') : '-'; ?></td>
         </tr>
       <?php endforeach; ?>
       </tbody>

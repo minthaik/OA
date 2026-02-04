@@ -23,7 +23,9 @@ This sprint executes the first block of the roadmap toward v1.0 quality.
   - [x] Clear dashboard cache
   - [x] Repair schema (dbDelta)
   - [x] Reschedule cron
+  - [x] Optimize analytics tables
 - [x] Table integrity report
+- [x] Table storage footprint visibility in Health
 - [x] Health checks report
 - [x] Migration history log
 - [x] Schema audit report (columns, primary key, secondary indexes)

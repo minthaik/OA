@@ -703,6 +703,10 @@ class OA_Admin {
       } elseif ($action==='repair_caps'){
         self::ensure_caps();
         $health_notice='Capability matrix repaired.';
+      } elseif ($action==='optimize_tables'){
+        $res=OA_Reports::optimize_tables();
+        $fail=empty($res['failed']) ? '' : ('; failed: '.implode(', ',$res['failed']));
+        $health_notice='Table optimize completed: '.$res['optimized'].' optimized, '.$res['skipped'].' skipped'.$fail.'.';
       } elseif ($action==='export_diagnostics'){
         $payload=OA_Reports::diagnostics_payload();
         $stamp=wp_date('Ymd_His', current_time('timestamp'));
