@@ -117,10 +117,12 @@ class OA_Admin {
     echo '<label class="oa-date-inline"><span>From</span><input type="date" name="from" value="'.esc_attr($from).'"></label>';
     echo '<label class="oa-date-inline"><span>To</span><input type="date" name="to" value="'.esc_attr($to).'"></label>';
     echo '</div>';
+    echo '<div class="oa-range-ops">';
     echo '<div class="oa-range-actions">';
     echo '<button class="button button-primary" type="submit">Apply</button>';
     echo '<button type="button" class="button oa-button-quiet" data-oa-copy-link>Copy link</button>';
-    echo '<span class="oa-advanced-slot" data-oa-advanced-slot></span>';
+    echo '</div>';
+    echo '<div class="oa-range-advanced-wrap"><span class="oa-advanced-slot" data-oa-advanced-slot></span></div>';
     echo '</div></form></div>';
     $html=ob_get_clean();
     return [$from,$to,$html];
