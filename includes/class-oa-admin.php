@@ -153,16 +153,42 @@ class OA_Admin {
     $store=get_option('oa_saved_segments',[]);
     return is_array($store) ? $store : [];
   }
+  private static function get_default_segments_store(){
+    $uid=intval(get_current_user_id());
+    if ($uid<=0) return [];
+    $store=get_user_meta($uid,'oa_default_segments',true);
+    return is_array($store) ? $store : [];
+  }
+  private static function get_default_segment_id($scope){
+    $store=self::get_default_segments_store();
+    return sanitize_key((string)($store[$scope] ?? ''));
+  }
+  private static function set_default_segment_id($scope,$segment_id){
+    $uid=intval(get_current_user_id());
+    if ($uid<=0) return;
+    $store=self::get_default_segments_store();
+    if ($segment_id===''){
+      unset($store[$scope]);
+    } else {
+      $store[$scope]=$segment_id;
+    }
+    update_user_meta($uid,'oa_default_segments',$store);
+  }
   private static function get_segments($scope){
     $store=self::get_segments_store();
     $rows=(isset($store[$scope]) && is_array($store[$scope])) ? $store[$scope] : [];
     $allowed=self::filter_scope_fields($scope);
+    $uid=intval(get_current_user_id());
+    $is_admin=current_user_can('manage_options');
     $out=[];
     foreach($rows as $row){
       if (!is_array($row)) continue;
       $id=sanitize_key($row['id'] ?? '');
       $name=sanitize_text_field($row['name'] ?? '');
       if ($id==='' || $name==='') continue;
+      $visibility=in_array(($row['visibility'] ?? 'shared'),['shared','private'],true) ? $row['visibility'] : 'shared';
+      $owner_id=max(0,intval($row['owner_id'] ?? 0));
+      if ($visibility==='private' && $owner_id>0 && $owner_id!==$uid && !$is_admin) continue;
       $filters=[];
       foreach($allowed as $k){
         $v=sanitize_text_field((string)(is_array($row['filters'] ?? null) ? ($row['filters'][$k] ?? '') : ''));
@@ -176,6 +202,8 @@ class OA_Admin {
         'id'=>$id,
         'name'=>$name,
         'filters'=>$filters,
+        'visibility'=>$visibility,
+        'owner_id'=>$owner_id,
         'created_at'=>sanitize_text_field((string)($row['created_at'] ?? '')),
       ];
     }
@@ -196,16 +224,24 @@ class OA_Admin {
     $map=[
       'saved'=>'Saved view created.',
       'deleted'=>'Saved view deleted.',
+      'default_set'=>'Default view saved.',
+      'default_cleared'=>'Default view cleared.',
       'name_required'=>'Provide a name to save this view.',
       'empty'=>'Set at least one filter before saving a view.',
       'not_found'=>'Saved view was not found.',
+      'forbidden'=>'You cannot modify this saved view.',
       'invalid'=>'Invalid saved-view action.',
     ];
     return $map[$code] ?? '';
   }
+  private static function can_edit_segment($segment){
+    if (!self::can_manage()) return false;
+    if (current_user_can('manage_options')) return true;
+    $owner_id=max(0,intval($segment['owner_id'] ?? 0));
+    return ($owner_id>0 && $owner_id===intval(get_current_user_id()));
+  }
   private static function handle_segments_post($scope,$filters){
     if (empty($_POST['oa_segment_action'])) return;
-    if (!self::can_manage()) return;
     $posted_scope=sanitize_key($_POST['oa_segment_scope'] ?? '');
     if ($posted_scope!==$scope) return;
     check_admin_referer('oa_segments_'.$scope);
@@ -213,6 +249,7 @@ class OA_Admin {
     $segments=self::get_segments($scope);
     $notice='invalid';
     if ($action==='save'){
+      if (!self::can_manage()) return;
       $name=sanitize_text_field($_POST['oa_segment_name'] ?? '');
       if ($name===''){
         $notice='name_required';
@@ -222,10 +259,13 @@ class OA_Admin {
         if (!$has){
           $notice='empty';
         } else {
+          $visibility=in_array(($_POST['oa_segment_visibility'] ?? 'private'),['private','shared'],true) ? $_POST['oa_segment_visibility'] : 'private';
           $segments[]=[
             'id'=>'seg_'.wp_generate_password(8,false,false),
             'name'=>$name,
             'filters'=>$filters,
+            'visibility'=>$visibility,
+            'owner_id'=>intval(get_current_user_id()),
             'created_at'=>current_time('mysql'),
           ];
           if (count($segments)>40) $segments=array_slice($segments,-40);
@@ -234,16 +274,28 @@ class OA_Admin {
         }
       }
     } elseif ($action==='delete'){
+      if (!self::can_manage()) return;
       $id=sanitize_key($_POST['oa_segment_delete_id'] ?? '');
-      $before=count($segments);
-      $segments=array_values(array_filter($segments,function($seg) use ($id){
-        return (string)($seg['id'] ?? '')!==$id;
-      }));
-      if (count($segments)<$before){
+      $segment=self::find_segment($segments,$id);
+      if (!$segment){
+        $notice='not_found';
+      } elseif (!self::can_edit_segment($segment)){
+        $notice='forbidden';
+      } else {
+        $segments=array_values(array_filter($segments,function($seg) use ($id){
+          return (string)($seg['id'] ?? '')!==$id;
+        }));
         self::save_segments($scope,$segments);
         $notice='deleted';
-      } else {
+      }
+    } elseif ($action==='set_default'){
+      if (!self::can_view()) return;
+      $id=sanitize_key($_POST['oa_segment_default_id'] ?? '');
+      if ($id!=='' && !self::find_segment($segments,$id)){
         $notice='not_found';
+      } else {
+        self::set_default_segment_id($scope,$id);
+        $notice=($id==='' ? 'default_cleared' : 'default_set');
       }
     }
 
@@ -261,7 +313,16 @@ class OA_Admin {
   private static function filter_inputs($scope='traffic'){
     $allowed=self::filter_scope_fields($scope);
     $segments=self::get_segments($scope);
+    $explicit=false;
+    foreach($allowed as $k){
+      $qk='oa_'.$k;
+      if (isset($_GET[$qk]) && !is_array($_GET[$qk])) { $explicit=true; break; }
+    }
+    $has_segment_query=(isset($_GET['oa_segment']) && !is_array($_GET['oa_segment']));
     $selected_segment=isset($_GET['oa_segment']) ? sanitize_key($_GET['oa_segment']) : '';
+    if ($selected_segment==='' && !$explicit && !$has_segment_query){
+      $selected_segment=self::get_default_segment_id($scope);
+    }
     $segment=(self::find_segment($segments,$selected_segment) ?: []);
     $segment_filters=is_array($segment['filters'] ?? null) ? $segment['filters'] : [];
     $filters=[];
@@ -276,6 +337,8 @@ class OA_Admin {
     self::handle_segments_post($scope,$filters);
     $segments=self::get_segments($scope);
     if (!$selected_segment || !self::find_segment($segments,$selected_segment)) $selected_segment='';
+    $default_segment_id=self::get_default_segment_id($scope);
+    if ($default_segment_id!=='' && !self::find_segment($segments,$default_segment_id)) $default_segment_id='';
     $preserve_keys=['page','from','to','oa_range'];
     $hidden=[];
     foreach($preserve_keys as $k){
@@ -301,7 +364,8 @@ class OA_Admin {
     if (!empty($segments)){
       echo '<label class="oa-segment-row">Saved view <select name="oa_segment"><option value="">None</option>';
       foreach($segments as $seg){
-        echo '<option value="'.esc_attr($seg['id']).'"'.selected($selected_segment,$seg['id'],false).'>'.esc_html($seg['name']).'</option>';
+        $tag=(($seg['visibility'] ?? 'shared')==='private') ? ' (Private)' : ' (Shared)';
+        echo '<option value="'.esc_attr($seg['id']).'"'.selected($selected_segment,$seg['id'],false).'>'.esc_html($seg['name'].$tag).'</option>';
       }
       echo '</select></label>';
     }
@@ -322,6 +386,22 @@ class OA_Admin {
     echo '<button class="button">Apply filters</button>';
     echo '<a class="button" href="'.esc_url($reset_url).'">Reset filters</a>';
     echo '</form></details></div>';
+    if (self::can_view() && !empty($segments)){
+      echo '<div class="oa-segment-admin">';
+      echo '<form method="post" class="oa-segment-admin-form">';
+      wp_nonce_field('oa_segments_'.$scope);
+      echo '<input type="hidden" name="oa_segment_action" value="set_default">';
+      echo '<input type="hidden" name="oa_segment_scope" value="'.esc_attr($scope).'">';
+      echo '<label>Default view <select name="oa_segment_default_id"><option value="">None</option>';
+      foreach($segments as $seg){
+        $tag=(($seg['visibility'] ?? 'shared')==='private') ? ' (Private)' : ' (Shared)';
+        echo '<option value="'.esc_attr($seg['id']).'"'.selected($default_segment_id,$seg['id'],false).'>'.esc_html($seg['name'].$tag).'</option>';
+      }
+      echo '</select></label>';
+      echo '<button class="button">Save default</button>';
+      echo '</form>';
+      echo '</div>';
+    }
     if (self::can_manage()){
       echo '<div class="oa-segment-admin">';
       echo '<form method="post" class="oa-segment-admin-form">';
@@ -329,16 +409,19 @@ class OA_Admin {
       echo '<input type="hidden" name="oa_segment_action" value="save">';
       echo '<input type="hidden" name="oa_segment_scope" value="'.esc_attr($scope).'">';
       echo '<label>Save current as <input type="text" name="oa_segment_name" placeholder="My saved view"></label>';
+      echo '<label>Visibility <select name="oa_segment_visibility"><option value="private">Private</option><option value="shared">Shared</option></select></label>';
       echo '<button class="button">Save view</button>';
       echo '</form>';
-      if (!empty($segments)){
+      $editable=array_values(array_filter($segments,function($seg){ return self::can_edit_segment($seg); }));
+      if (!empty($editable)){
         echo '<form method="post" class="oa-segment-admin-form">';
         wp_nonce_field('oa_segments_'.$scope);
         echo '<input type="hidden" name="oa_segment_action" value="delete">';
         echo '<input type="hidden" name="oa_segment_scope" value="'.esc_attr($scope).'">';
         echo '<label>Delete view <select name="oa_segment_delete_id">';
-        foreach($segments as $seg){
-          echo '<option value="'.esc_attr($seg['id']).'">'.esc_html($seg['name']).'</option>';
+        foreach($editable as $seg){
+          $tag=(($seg['visibility'] ?? 'shared')==='private') ? ' (Private)' : ' (Shared)';
+          echo '<option value="'.esc_attr($seg['id']).'">'.esc_html($seg['name'].$tag).'</option>';
         }
         echo '</select></label>';
         echo '<button class="button" onclick="return confirm(\'Delete this saved view?\');">Delete</button>';

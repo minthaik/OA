@@ -11,8 +11,10 @@ This sprint starts Phase 2 (analytics depth) by making cross-report filtering re
 1. Saved view model by report scope (traffic/goals/funnels/campaigns/coupons/revenue)
 2. Saved view load flow in advanced filters
 3. Save/delete segment controls (manage-only)
-4. Post/redirect/get notice flow for segment operations
-5. UI consistency for segment controls in filter area
+4. Shared/private segment visibility rules
+5. Default view per page (per-user)
+6. Post/redirect/get notice flow for segment operations
+7. UI consistency for segment controls in filter area
 
 ## Delivered
 - [x] Segment storage option (`oa_saved_segments`) keyed by scope
@@ -21,7 +23,11 @@ This sprint starts Phase 2 (analytics depth) by making cross-report filtering re
 - [x] Manage-only actions:
   - [x] Save current filters as a named view
   - [x] Delete existing view
-- [x] Segment operation notices (saved/deleted/validation errors)
+- [x] Visibility model for segments:
+  - [x] Private segments (owner only)
+  - [x] Shared segments (all users with analytics access)
+- [x] Default view per page (per-user preference)
+- [x] Segment operation notices (saved/deleted/default/errors)
 - [x] Segment control UI polish in `assets/admin.css`
 
 ## Validation
@@ -30,8 +36,9 @@ This sprint starts Phase 2 (analytics depth) by making cross-report filtering re
 - Manual UX target:
   - Saved view loads correctly into report filters
   - Save/delete actions visible only for manage users
+  - Default view persists per user and auto-applies when no explicit filter query is set
 
 ## Next sprint candidates
-- Add “default view per page” preference.
-- Add global “shared vs private” segment support.
 - Add segment export/import for migration across sites.
+- Add audit metadata (last used, usage count) for segment lifecycle cleanup.
+- Add quick favorite-segment chips near the filter bar.

@@ -8,7 +8,7 @@ This document is the execution path to take the plugin from current state to a c
 - Reliable data pipeline with explainable metrics.
 - Strong operational safety (migrations, retention, compliance, monitoring).
 
-## Current baseline (as of v0.4.6)
+## Current baseline (as of v0.4.7)
 - Dashboard, insights, anomalies, goals, funnels, campaigns.
 - WooCommerce revenue and coupon analytics.
 - CSV export API and email reports.
