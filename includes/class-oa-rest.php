@@ -224,7 +224,8 @@ class OA_REST {
         $rows=$wpdb->get_results($wpdb->prepare("SELECT g.name,g.type,g.match_value,dg.day,dg.hits,dg.value_sum FROM {$pfx}daily_goals dg JOIN {$pfx}goals g ON g.id=dg.goal_id WHERE dg.day BETWEEN %s AND %s ORDER BY dg.day DESC, dg.hits DESC LIMIT 5000",$from,$to), ARRAY_A); break;
       case 'campaigns':
         $opt=get_option('oa_settings',[]);
-        $meta['attribution_mode']=in_array(($opt['attribution_mode'] ?? 'first_touch'),['first_touch','last_touch'],true)?$opt['attribution_mode']:'first_touch';
+        $attr_mode=sanitize_key((string)($opt['attribution_mode'] ?? 'first_touch'));
+        $meta['attribution_mode']=in_array($attr_mode,['first_touch','last_touch'],true)?$attr_mode:'first_touch';
         $rows=$wpdb->get_results($wpdb->prepare("SELECT day,source,medium,campaign,landing_path,views,conversions,value_sum FROM {$pfx}daily_campaigns WHERE day BETWEEN %s AND %s ORDER BY day DESC, conversions DESC, views DESC LIMIT 5000",$from,$to), ARRAY_A); break;
       case 'revenue':
         $rows=$wpdb->get_results($wpdb->prepare("SELECT day,orders,revenue FROM {$pfx}daily_revenue WHERE day BETWEEN %s AND %s ORDER BY day DESC LIMIT 5000",$from,$to), ARRAY_A); break;

@@ -63,19 +63,22 @@ class OA_Admin {
     $out['rate_limit_per_min']=max(10,intval($in['rate_limit_per_min'] ?? 120));
     $out['retention_days']=max(30,intval($in['retention_days'] ?? 180));
     $out['utm_attribution_days']=max(1,min(365,intval($in['utm_attribution_days'] ?? 30)));
-    $out['attribution_mode']=in_array(($in['attribution_mode'] ?? 'first_touch'),['first_touch','last_touch'],true)?$in['attribution_mode']:'first_touch';
+    $attr_mode=sanitize_key((string)($in['attribution_mode'] ?? 'first_touch'));
+    $out['attribution_mode']=in_array($attr_mode,['first_touch','last_touch'],true)?$attr_mode:'first_touch';
     $out['anomaly_threshold_pct']=max(10,min(90,intval($in['anomaly_threshold_pct'] ?? 35)));
     $out['anomaly_baseline_days']=max(3,min(30,intval($in['anomaly_baseline_days'] ?? 7)));
     $out['anomaly_min_views']=max(10,intval($in['anomaly_min_views'] ?? 60));
     $out['anomaly_min_conversions']=max(1,intval($in['anomaly_min_conversions'] ?? 5));
-    $out['email_reports_freq']=in_array(($in['email_reports_freq'] ?? 'weekly'),['daily','weekly','monthly'],true)?$in['email_reports_freq']:'weekly';
+    $freq=sanitize_key((string)($in['email_reports_freq'] ?? 'weekly'));
+    $out['email_reports_freq']=in_array($freq,['daily','weekly','monthly'],true)?$freq:'weekly';
     $email=sanitize_email($in['email_reports_to'] ?? get_option('admin_email'));
     if (!$email) {
       $email=sanitize_email(get_option('admin_email'));
       add_settings_error('oa_settings','oa_invalid_email',__('Invalid report email. Reverted to admin email.','ordelix-analytics'),'error');
     }
     $out['email_reports_to']=$email;
-    $out['consent_mode']=in_array(($in['consent_mode'] ?? 'off'),['off','require','cmp'],true)?$in['consent_mode']:'off';
+    $consent_mode=sanitize_key((string)($in['consent_mode'] ?? 'off'));
+    $out['consent_mode']=in_array($consent_mode,['off','require','cmp'],true)?$consent_mode:'off';
     $consent_cookie=sanitize_key($in['consent_cookie'] ?? 'oa_consent');
     $optout_cookie=sanitize_key($in['optout_cookie'] ?? 'oa_optout');
     $out['consent_cookie']=$consent_cookie ?: 'oa_consent';
@@ -248,7 +251,8 @@ class OA_Admin {
         if ($id==='') $id='seg_'.wp_generate_password(8,false,false);
         while(isset($seen[$scope.'|'.$id])) $id='seg_'.wp_generate_password(8,false,false);
         $seen[$scope.'|'.$id]=1;
-        $visibility=in_array(($row['visibility'] ?? 'shared'),['shared','private'],true)?$row['visibility']:'shared';
+        $visibility=sanitize_key((string)($row['visibility'] ?? 'shared'));
+        if (!in_array($visibility,['shared','private'],true)) $visibility='shared';
         $owner_id=max(0,intval($row['owner_id'] ?? 0));
         if ($override_owner_id>0) $owner_id=$override_owner_id;
         if ($owner_id<=0) $owner_id=max(1,intval(get_current_user_id()));
@@ -618,7 +622,8 @@ class OA_Admin {
     list($from,$to,$range_html)=self::range_inputs();
     list($filters,$filters_html)=self::filter_inputs('campaigns');
     $opt=get_option('oa_settings',[]);
-    $attribution_mode=in_array(($opt['attribution_mode'] ?? 'first_touch'),['first_touch','last_touch'],true)?$opt['attribution_mode']:'first_touch';
+    $attribution_mode=sanitize_key((string)($opt['attribution_mode'] ?? 'first_touch'));
+    if (!in_array($attribution_mode,['first_touch','last_touch'],true)) $attribution_mode='first_touch';
     $rows=OA_Reports::campaigns($from,$to,$filters);
     include OA_PLUGIN_DIR.'includes/views/campaigns.php';
   }

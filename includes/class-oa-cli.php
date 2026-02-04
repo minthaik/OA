@@ -181,7 +181,8 @@ class OA_CLI {
       ];
 
       $opt=get_option('oa_settings',[]);
-      $attr_mode=in_array(($opt['attribution_mode'] ?? 'first_touch'),['first_touch','last_touch'],true)?$opt['attribution_mode']:'first_touch';
+      $attr_mode=sanitize_key((string)($opt['attribution_mode'] ?? 'first_touch'));
+      if (!in_array($attr_mode,['first_touch','last_touch'],true)) $attr_mode='first_touch';
       $attr_valid=in_array($attr_mode,['first_touch','last_touch'],true);
       $tests[]=[
         'id'=>'attribution_mode_setting',

@@ -47,7 +47,7 @@
         <label>UTM attribution days <input type="number" min="1" max="365" name="oa_settings[utm_attribution_days]" value="<?php echo esc_attr($opt['utm_attribution_days'] ?? 30); ?>"></label>
         <label>Attribution mode
           <select name="oa_settings[attribution_mode]">
-            <?php $attribution_mode = in_array(($opt['attribution_mode'] ?? 'first_touch'), ['first_touch','last_touch'], true) ? $opt['attribution_mode'] : 'first_touch'; ?>
+            <?php $attribution_mode = sanitize_key((string)($opt['attribution_mode'] ?? 'first_touch')); if (!in_array($attribution_mode, ['first_touch','last_touch'], true)) $attribution_mode='first_touch'; ?>
             <option value="first_touch" <?php selected($attribution_mode, 'first_touch'); ?>>First touch</option>
             <option value="last_touch" <?php selected($attribution_mode, 'last_touch'); ?>>Last touch</option>
           </select>

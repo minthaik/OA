@@ -6,6 +6,8 @@ class OA_Tracker {
     $opt=get_option('oa_settings',[]);
     if (empty($opt['enabled'])) return;
     if (!OA_Util::can_track()) return;
+    $attr_mode=sanitize_key((string)($opt['attribution_mode'] ?? 'first_touch'));
+    if (!in_array($attr_mode,['first_touch','last_touch'],true)) $attr_mode='first_touch';
     wp_register_script('ordelix-analytics-tracker', OA_PLUGIN_URL.'assets/tracker.js', [], OA_VERSION, true);
     $cfg=[
       'endpoint'=>esc_url_raw(rest_url('ordelix-analytics/v1/collect')),
@@ -17,7 +19,7 @@ class OA_Tracker {
       'autoMailto'=>!empty($opt['auto_mailto']),
       'autoForms'=>!empty($opt['auto_forms']),
       'utmAttributionDays'=>max(1,min(365,intval($opt['utm_attribution_days'] ?? 30))),
-      'attributionMode'=>in_array(($opt['attribution_mode'] ?? 'first_touch'),['first_touch','last_touch'],true)?$opt['attribution_mode']:'first_touch',
+      'attributionMode'=>$attr_mode,
       'consentMode'=>sanitize_key($opt['consent_mode'] ?? 'off'),
       'consentCookie'=>sanitize_key($opt['consent_cookie'] ?? 'oa_consent'),
       'optoutCookie'=>sanitize_key($opt['optout_cookie'] ?? 'oa_optout'),
