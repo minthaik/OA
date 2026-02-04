@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  php-lint:
+    name: PHP Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          coverage: none
+
+      - name: Lint PHP files
+        shell: bash
+        run: |
+          set -euo pipefail
+          find . -type f -name "*.php" -not -path "./vendor/*" -print0 | xargs -0 -n1 php -l
+
+  wp-smoke:
+    name: WP Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: php-lint
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: wp_test
+          MYSQL_USER: wp
+          MYSQL_PASSWORD: wp
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -u wp -pwp --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli
+          coverage: none
+
+      - name: Install WP-CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php wp-cli.phar --info
+          chmod +x wp-cli.phar
+          sudo mv wp-cli.phar /usr/local/bin/wp
+
+      - name: Prepare WordPress
+        shell: bash
+        env:
+          WP_PATH: /tmp/wordpress
+        run: |
+          set -euo pipefail
+          wp core download --path="$WP_PATH" --version=latest
+          wp config create \
+            --path="$WP_PATH" \
+            --dbname=wp_test \
+            --dbuser=wp \
+            --dbpass=wp \
+            --dbhost=127.0.0.1 \
+            --skip-check
+          wp core install \
+            --path="$WP_PATH" \
+            --url=http://localhost \
+            --title="Ordelix CI" \
+            --admin_user=admin \
+            --admin_password=admin \
+            --admin_email=admin@example.com \
+            --skip-email
+
+      - name: Install plugin into test WP
+        shell: bash
+        env:
+          WP_PATH: /tmp/wordpress
+        run: |
+          set -euo pipefail
+          mkdir -p "$WP_PATH/wp-content/plugins/ordelix-analytics"
+          rsync -a --delete --exclude ".git" --exclude ".github" "$GITHUB_WORKSPACE/" "$WP_PATH/wp-content/plugins/ordelix-analytics/"
+          wp plugin activate ordelix-analytics --path="$WP_PATH"
+
+      - name: Run regression smoke
+        shell: bash
+        env:
+          WP_PATH: /tmp/wordpress
+        run: |
+          set -euo pipefail
+          FROM="$(date -u -d '29 days ago' +%F)"
+          TO="$(date -u +%F)"
+          wp ordelix regression-smoke --path="$WP_PATH" --from="$FROM" --to="$TO" --format=table
