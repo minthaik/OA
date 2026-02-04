@@ -137,9 +137,14 @@ class OA_Admin {
     if (!wp_checkdate(substr($value,5,2), substr($value,8,2), substr($value,0,4), $value)) return $fallback;
     return $value;
   }
-  private static function json_download($filename,$payload){
+  private static function json_download($filename,$payload,$redirect_url=''){
     $json=wp_json_encode($payload, JSON_PRETTY_PRINT);
     if (!is_string($json) || $json==='') $json='{}';
+    $redirect_url=esc_url_raw((string)$redirect_url);
+    if ($redirect_url===''){
+      $redirect_url=wp_get_referer();
+      if (!$redirect_url) $redirect_url=admin_url('admin.php');
+    }
     if (!headers_sent()){
       nocache_headers();
       header('Content-Type: application/json; charset=utf-8');
@@ -154,8 +159,10 @@ class OA_Admin {
       .';var blob=new Blob([text],{type:"application/json;charset=utf-8"});'
       .'var a=document.createElement("a");a.href=URL.createObjectURL(blob);'
       .'a.download='.wp_json_encode($filename).';document.body.appendChild(a);a.click();'
-      .'setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},250);}catch(e){}})();</script>';
-    echo '<noscript><pre>'.esc_html($json).'</pre></noscript>';
+      .'setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();'
+      .'window.location.replace('.wp_json_encode($redirect_url).');},260);}catch(e){'
+      .'window.location.replace('.wp_json_encode($redirect_url).');}})();</script>';
+    echo '<noscript><p>Download generated.</p><p><a class="button" href="'.esc_url($redirect_url).'">Return</a></p><pre>'.esc_html($json).'</pre></noscript>';
     exit;
   }
   private static function compliance_range_inputs($in_from,$in_to){
@@ -692,7 +699,7 @@ class OA_Admin {
         $payload=OA_Reports::diagnostics_payload();
         $stamp=wp_date('Ymd_His', current_time('timestamp'));
         $fname='ordelix_diagnostics_'.$stamp.'.json';
-        self::json_download($fname,$payload);
+        self::json_download($fname,$payload,admin_url('admin.php?page=ordelix-analytics-health'));
       } elseif ($action==='self_test'){
         $strict=!empty($_POST['strict']);
         $health_self_test=OA_Reports::health_test_suite($strict);
@@ -718,7 +725,7 @@ class OA_Admin {
         $payload=OA_Reports::compliance_export_bundle($compliance_from,$compliance_to);
         $stamp=wp_date('Ymd_His', current_time('timestamp'));
         $fname='ordelix_compliance_export_'.$compliance_from.'_to_'.$compliance_to.'_'.$stamp.'.json';
-        self::json_download($fname,$payload);
+        self::json_download($fname,$payload,admin_url('admin.php?page=ordelix-analytics-settings'));
       } elseif ($action==='erase_range'){
         $res=OA_Reports::erase_data_range($compliance_from,$compliance_to);
         $compliance_notice='Analytics rows deleted for '.$compliance_from.' -> '.$compliance_to.' ('.$res['total'].' row(s)).';
@@ -745,7 +752,7 @@ class OA_Admin {
         ];
         $stamp=wp_date('Ymd_His', current_time('timestamp'));
         $fname='ordelix_segments_export_'.$stamp.'.json';
-        self::json_download($fname,$payload);
+        self::json_download($fname,$payload,admin_url('admin.php?page=ordelix-analytics-settings'));
       } elseif ($action==='import_merge' || $action==='import_replace'){
         $segments_json_input=(string)wp_unslash($_POST['oa_segments_json'] ?? '');
         $decoded=json_decode($segments_json_input,true);
