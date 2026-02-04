@@ -126,11 +126,12 @@
 
   <div class="oa-card">
     <div class="oa-card-h">Compliance tools</div>
-    <p class="oa-muted">Export or erase analytics event aggregates for a date range. These actions only affect daily analytics tables (goals/funnels definitions are preserved).</p>
+    <p class="oa-muted">Privacy/retention operations for analytics data. These affect daily analytics tables only (goal/funnel definitions are preserved).</p>
 
     <form method="post" class="oa-compliance-form">
       <?php wp_nonce_field('oa_compliance_tools'); ?>
       <input type="hidden" name="oa_compliance_action" value="export_bundle">
+      <p class="oa-muted"><strong>Export bundle</strong>: download analytics tables for the selected date range.</p>
       <div class="oa-form-row">
         <label>From <input type="date" name="oa_compliance_from" value="<?php echo esc_attr($compliance_from); ?>"></label>
         <label>To <input type="date" name="oa_compliance_to" value="<?php echo esc_attr($compliance_to); ?>"></label>
@@ -143,6 +144,7 @@
     <form method="post" class="oa-compliance-form">
       <?php wp_nonce_field('oa_compliance_tools'); ?>
       <input type="hidden" name="oa_compliance_action" value="erase_range">
+      <p class="oa-muted"><strong>Erase range</strong>: permanently remove analytics rows only for the selected dates.</p>
       <div class="oa-form-row">
         <label>From <input type="date" name="oa_compliance_from" value="<?php echo esc_attr($compliance_from); ?>"></label>
         <label>To <input type="date" name="oa_compliance_to" value="<?php echo esc_attr($compliance_to); ?>"></label>
@@ -155,6 +157,7 @@
     <form method="post" class="oa-compliance-form oa-compliance-form-danger">
       <?php wp_nonce_field('oa_compliance_tools'); ?>
       <input type="hidden" name="oa_compliance_action" value="erase_all">
+      <p class="oa-muted"><strong>Erase all analytics rows</strong>: destructive operation for all days. Use only when resetting analytics history.</p>
       <div class="oa-form-row">
         <label>Confirmation phrase <input type="text" name="oa_confirm" value="" placeholder="ERASE ALL"></label>
       </div>
@@ -167,11 +170,12 @@
 
   <div class="oa-card">
     <div class="oa-card-h">Segments migration</div>
-    <p class="oa-muted">Export/import saved views (segments) across sites. Imported private segments are assigned to your current user.</p>
+    <p class="oa-muted">Saved-view portability only. This does not export or erase analytics event data.</p>
 
     <form method="post" class="oa-compliance-form">
       <?php wp_nonce_field('oa_segments_tools'); ?>
       <input type="hidden" name="oa_segments_tools_action" value="export_segments">
+      <p class="oa-muted"><strong>Export segments</strong>: download saved views as JSON.</p>
       <div class="oa-form-actions">
         <button class="button">Download segments JSON</button>
       </div>
@@ -179,6 +183,7 @@
 
     <form method="post" class="oa-compliance-form">
       <?php wp_nonce_field('oa_segments_tools'); ?>
+      <p class="oa-muted"><strong>Import segments</strong>: merge into existing views or replace all existing views.</p>
       <div class="oa-form-row">
         <label>Segments JSON
           <textarea name="oa_segments_json" rows="8" placeholder='{"segments":{"traffic":[{"name":"Mobile Pricing","filters":{"device":"mobile","path":"/pricing"}}]}}'><?php echo esc_textarea($segments_json_input ?? ''); ?></textarea>
