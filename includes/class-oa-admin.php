@@ -518,47 +518,58 @@ class OA_Admin {
     echo '<button class="button">Apply filters</button>';
     echo '<a class="button" href="'.esc_url($reset_url).'">Reset filters</a>';
     echo '</form></details></div>';
-    if (self::can_view() && !empty($segments)){
-      echo '<div class="oa-segment-admin">';
-      echo '<form method="post" class="oa-segment-admin-form">';
-      wp_nonce_field('oa_segments_'.$scope);
-      echo '<input type="hidden" name="oa_segment_action" value="set_default">';
-      echo '<input type="hidden" name="oa_segment_scope" value="'.esc_attr($scope).'">';
-      echo '<label>Default view <select name="oa_segment_default_id"><option value="">None</option>';
-      foreach($segments as $seg){
-        $tag=(($seg['visibility'] ?? 'shared')==='private') ? ' (Private)' : ' (Shared)';
-        echo '<option value="'.esc_attr($seg['id']).'"'.selected($default_segment_id,$seg['id'],false).'>'.esc_html($seg['name'].$tag).'</option>';
-      }
-      echo '</select></label>';
-      echo '<button class="button">Save default</button>';
-      echo '</form>';
-      echo '</div>';
-    }
-    if (self::can_manage()){
-      echo '<div class="oa-segment-admin">';
-      echo '<form method="post" class="oa-segment-admin-form">';
-      wp_nonce_field('oa_segments_'.$scope);
-      echo '<input type="hidden" name="oa_segment_action" value="save">';
-      echo '<input type="hidden" name="oa_segment_scope" value="'.esc_attr($scope).'">';
-      echo '<label>Save current as <input type="text" name="oa_segment_name" placeholder="My saved view"></label>';
-      echo '<label>Visibility <select name="oa_segment_visibility"><option value="private">Private</option><option value="shared">Shared</option></select></label>';
-      echo '<button class="button">Save view</button>';
-      echo '</form>';
-      $editable=array_values(array_filter($segments,function($seg){ return self::can_edit_segment($seg); }));
-      if (!empty($editable)){
+    $can_default=(self::can_view() && !empty($segments));
+    $can_manage=self::can_manage();
+    if ($can_default || $can_manage){
+      echo '<div class="oa-segment-strip" data-oa-save-panel>';
+      echo '<details class="oa-save-panel">';
+      echo '<summary><span>Save view</span></summary>';
+      echo '<div class="oa-save-panel-body">';
+      if ($can_default){
+        echo '<div class="oa-segment-admin">';
         echo '<form method="post" class="oa-segment-admin-form">';
         wp_nonce_field('oa_segments_'.$scope);
-        echo '<input type="hidden" name="oa_segment_action" value="delete">';
+        echo '<input type="hidden" name="oa_segment_action" value="set_default">';
         echo '<input type="hidden" name="oa_segment_scope" value="'.esc_attr($scope).'">';
-        echo '<label>Delete view <select name="oa_segment_delete_id">';
-        foreach($editable as $seg){
+        echo '<label>Default view <select name="oa_segment_default_id"><option value="">None</option>';
+        foreach($segments as $seg){
           $tag=(($seg['visibility'] ?? 'shared')==='private') ? ' (Private)' : ' (Shared)';
-          echo '<option value="'.esc_attr($seg['id']).'">'.esc_html($seg['name'].$tag).'</option>';
+          echo '<option value="'.esc_attr($seg['id']).'"'.selected($default_segment_id,$seg['id'],false).'>'.esc_html($seg['name'].$tag).'</option>';
         }
         echo '</select></label>';
-        echo '<button class="button" onclick="return confirm(\'Delete this saved view?\');">Delete</button>';
+        echo '<button class="button">Save default</button>';
         echo '</form>';
+        echo '</div>';
       }
+      if ($can_manage){
+        echo '<div class="oa-segment-admin">';
+        echo '<form method="post" class="oa-segment-admin-form">';
+        wp_nonce_field('oa_segments_'.$scope);
+        echo '<input type="hidden" name="oa_segment_action" value="save">';
+        echo '<input type="hidden" name="oa_segment_scope" value="'.esc_attr($scope).'">';
+        echo '<label>Save current as <input type="text" name="oa_segment_name" placeholder="My saved view"></label>';
+        echo '<label>Visibility <select name="oa_segment_visibility"><option value="private">Private</option><option value="shared">Shared</option></select></label>';
+        echo '<button class="button">Save view</button>';
+        echo '</form>';
+        $editable=array_values(array_filter($segments,function($seg){ return self::can_edit_segment($seg); }));
+        if (!empty($editable)){
+          echo '<form method="post" class="oa-segment-admin-form">';
+          wp_nonce_field('oa_segments_'.$scope);
+          echo '<input type="hidden" name="oa_segment_action" value="delete">';
+          echo '<input type="hidden" name="oa_segment_scope" value="'.esc_attr($scope).'">';
+          echo '<label>Delete view <select name="oa_segment_delete_id">';
+          foreach($editable as $seg){
+            $tag=(($seg['visibility'] ?? 'shared')==='private') ? ' (Private)' : ' (Shared)';
+            echo '<option value="'.esc_attr($seg['id']).'">'.esc_html($seg['name'].$tag).'</option>';
+          }
+          echo '</select></label>';
+          echo '<button class="button" onclick="return confirm(\'Delete this saved view?\');">Delete</button>';
+          echo '</form>';
+        }
+        echo '</div>';
+      }
+      echo '</div>';
+      echo '</details>';
       echo '</div>';
     }
     return [$filters,ob_get_clean()];

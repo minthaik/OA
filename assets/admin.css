@@ -429,12 +429,52 @@ body[class*="ordelix-analytics_page_ordelix-analytics-"] #wpbody-content .error{
 }
 .oa-segment-row{min-width:210px}
 .oa-filter-form label{min-width:170px}
+.oa-save-slot{
+  display:inline-flex;
+  align-items:center;
+}
+.oa-segment-strip{
+  margin-top:8px;
+  display:flex;
+}
+.oa-save-slot .oa-segment-strip{margin-top:0}
+.oa-save-panel{
+  position:relative;
+}
+.oa-save-panel summary{
+  list-style:none;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:32px;
+  padding:0 12px;
+  border:1px solid #c6d8f2;
+  border-radius:10px;
+  background:#fff;
+  color:#2b4f78;
+  font-weight:600;
+}
+.oa-save-panel summary::-webkit-details-marker{display:none}
+.oa-save-panel[open] .oa-save-panel-body{
+  position:absolute;
+  top:calc(100% + 8px);
+  right:0;
+  z-index:32;
+  width:min(860px,calc(100vw - 110px));
+  border:1px solid #dce6f5;
+  border-radius:12px;
+  background:#fff;
+  box-shadow:0 12px 28px rgba(16,33,61,.16);
+  padding:10px;
+}
 .oa-segment-admin{
   margin-top:8px;
   display:flex;
   gap:8px;
   flex-wrap:wrap;
 }
+.oa-save-panel-body .oa-segment-admin:first-child{margin-top:0}
 .oa-segment-admin-form{
   display:flex;
   gap:8px;
@@ -730,6 +770,16 @@ body[class*="ordelix-analytics_page_ordelix-analytics-"] #wpbody-content .error{
     box-shadow:none;
     background:transparent;
     padding:0;
+  }
+  .oa-save-slot{width:100%}
+  .oa-segment-strip{width:100%}
+  .oa-save-panel{width:100%}
+  .oa-save-panel summary{width:100%}
+  .oa-save-panel[open] .oa-save-panel-body{
+    position:static;
+    width:auto;
+    margin-top:8px;
+    box-shadow:none;
   }
   .oa-filter-form label{min-width:0;flex:1 1 100%}
   .oa-segment-admin-form{width:100%}

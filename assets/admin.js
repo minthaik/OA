@@ -286,6 +286,13 @@
     });
   }
 
+  function initSaveViewDock(){
+    var slot=document.querySelector('[data-oa-save-slot]');
+    var panel=document.querySelector('[data-oa-save-panel]');
+    if(!slot || !panel) return;
+    slot.appendChild(panel);
+  }
+
   function initCopySqlButtons(){
     document.querySelectorAll('[data-oa-copy-sql]').forEach(function(btn){
       btn.addEventListener('click', function(){
@@ -504,6 +511,7 @@
 
   $(function(){
     initAdvancedFilterDock();
+    initSaveViewDock();
     hideThirdPartyNotices();
     initTabs();
     initCopyLinkButtons();

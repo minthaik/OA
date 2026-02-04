@@ -55,6 +55,7 @@ if (class_exists('WooCommerce')) $export_types[]='coupons';
     </div>
     <div class="oa-card-tools">
       <button type="button" class="button button-primary" data-oa-export-all="<?php echo esc_attr(implode(',',$export_types)); ?>" data-from="<?php echo esc_attr($from); ?>" data-to="<?php echo esc_attr($to); ?>">Export all datasets</button>
+      <span class="oa-save-slot" data-oa-save-slot></span>
       <?php if (!empty($data['anomalies'])): ?>
         <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=ordelix-analytics-anomalies&day='.rawurlencode(wp_date('Y-m-d', current_time('timestamp')-DAY_IN_SECONDS)))); ?>">Investigate anomalies</a>
       <?php endif; ?>
