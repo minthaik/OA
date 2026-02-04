@@ -6,6 +6,7 @@ Privacy-first, lightweight, local-first analytics for WordPress.
 - Auto events: outbound, downloads, tel:, mailto:, form submits
 - Goals (page or event) + value attribution
 - Funnels (multi-step page/event)
+- Funnel diagnostics (step drop-off and period-over-period conversion delta)
 - Campaigns (UTM source/medium/campaign) with conversions/value
 - Attribution mode controls (first-touch / last-touch)
 - Campaign CSV exports include attribution metadata for auditability

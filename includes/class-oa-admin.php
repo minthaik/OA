@@ -587,6 +587,7 @@ class OA_Admin {
     list($filters,$filters_html)=self::filter_inputs('funnels');
     $funnels=OA_Reports::get_funnels_with_steps($filters);
     $stats=OA_Reports::funnels_stats($from,$to,50,$filters);
+    $diagnostics=OA_Reports::funnels_diagnostics($from,$to,$filters,50);
     include OA_PLUGIN_DIR.'includes/views/funnels.php';
   }
   public static function page_campaigns(){

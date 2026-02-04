@@ -10,6 +10,16 @@
     <?php if (!empty($range_html)) echo $range_html; ?>
     <?php if (!empty($filters_html)) echo $filters_html; ?>
   </div>
+  <?php
+  $diag_map=[];
+  foreach((array)($diagnostics ?? []) as $d){
+    $diag_map[intval($d['id'] ?? 0)]=$d;
+  }
+  $fmt_delta=function($pct){
+    if ($pct===null) return 'new';
+    return (($pct>=0)?'+':'').number_format_i18n((float)$pct,1).'%';
+  };
+  ?>
 
   <?php if (!empty($can_manage)): ?>
   <div class="oa-card">
@@ -52,11 +62,11 @@
   <div class="oa-card">
     <div class="oa-card-h">Funnels (approx)</div>
     <table class="widefat striped">
-      <thead><tr><th>Funnel</th><th>Step 1</th><th>Last step</th><th>Conversion</th><th>Status</th><?php if (!empty($can_manage)): ?><th></th><?php endif; ?></tr></thead>
+      <thead><tr><th>Funnel</th><th>Step 1</th><th>Last step</th><th>Conversion</th><th>Trend delta</th><th>Top drop-off</th><th>Status</th><?php if (!empty($can_manage)): ?><th></th><?php endif; ?></tr></thead>
       <tbody>
       <?php if (empty($funnels)): ?>
-        <tr><td colspan="<?php echo !empty($can_manage) ? '6' : '5'; ?>">No funnels yet. <?php echo !empty($can_manage) ? 'Create one above to start tracking progression.' : 'Ask an admin to create one.'; ?></td></tr>
-      <?php else: foreach($funnels as $f): $st=null; foreach($stats as $s){ if($s['id']==$f['id']){$st=$s; break;} } ?>
+        <tr><td colspan="<?php echo !empty($can_manage) ? '8' : '7'; ?>">No funnels yet. <?php echo !empty($can_manage) ? 'Create one above to start tracking progression.' : 'Ask an admin to create one.'; ?></td></tr>
+      <?php else: foreach($funnels as $f): $st=null; foreach($stats as $s){ if($s['id']==$f['id']){$st=$s; break;} } $diag=$diag_map[intval($f['id'])] ?? null; ?>
         <tr>
           <td>
             <div><strong><?php echo esc_html($f['name']); ?></strong></div>
@@ -65,10 +75,38 @@
                 <span class="oa-pill"><?php echo esc_html($step['step_num'].': '.$step['step_type'].' '.$step['step_value']); ?></span>
               <?php endforeach; ?>
             </div>
+            <?php if (!empty($diag['steps'])): ?>
+              <details class="oa-explain">
+                <summary><span>Step diagnostics</span></summary>
+                <div class="oa-explain-body">
+                  <ul class="oa-mini-bars oa-list-tight">
+                    <?php foreach($diag['steps'] as $sd): ?>
+                      <?php if (empty($sd['next_step_num'])) continue; ?>
+                      <?php $drop_width=max(0,min(100,floatval($sd['drop_rate'] ?? 0))); ?>
+                      <li>
+                        <span class="oa-mini-bars__label"><?php echo esc_html('Step '.intval($sd['step_num']).' -> '.intval($sd['next_step_num'])); ?></span>
+                        <span class="oa-mini-bars__bar"><i style="width:<?php echo esc_attr(number_format($drop_width,1,'.','')); ?>%"></i></span>
+                        <span class="oa-mini-bars__value"><?php echo esc_html('drop '.number_format_i18n((float)$sd['drop_rate'],1).'% ('.number_format_i18n((int)$sd['hits']).' -> '.number_format_i18n((int)$sd['next_hits']).')'); ?></span>
+                      </li>
+                    <?php endforeach; ?>
+                  </ul>
+                </div>
+              </details>
+            <?php endif; ?>
           </td>
           <td><?php echo esc_html($st?number_format_i18n($st['step1']):'-'); ?></td>
           <td><?php echo esc_html($st?number_format_i18n($st['step_last']):'-'); ?></td>
           <td><?php echo esc_html($st?$st['conversion'].'%':'-'); ?></td>
+          <td>
+            <?php if (!empty($diag)): ?>
+              <?php $delta=$diag['conversion_delta_pct'] ?? null; ?>
+              <?php $delta_cls='oa-badge oa-badge-muted'; if ($delta!==null && $delta>0) $delta_cls='oa-badge oa-badge-ok'; elseif ($delta!==null && $delta<0) $delta_cls='oa-badge oa-badge-alert'; ?>
+              <span class="<?php echo esc_attr($delta_cls); ?>"><?php echo esc_html($fmt_delta($delta)); ?></span>
+            <?php else: ?>
+              -
+            <?php endif; ?>
+          </td>
+          <td><?php echo !empty($diag['top_drop_reason']) ? esc_html($diag['top_drop_reason']) : '-'; ?></td>
           <td><?php echo !empty($f['is_enabled'])?'Enabled':'Disabled'; ?></td>
           <?php if (!empty($can_manage)): ?>
           <td class="oa-actions">

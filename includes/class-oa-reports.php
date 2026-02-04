@@ -1180,6 +1180,117 @@ class OA_Reports {
     }
     return $out;
   }
+  public static function funnels_diagnostics($from,$to,$filters=[],$limit=10){
+    $filters=self::normalize_filters($filters);
+    $limit=max(1,intval($limit));
+    global $wpdb; $pfx=$wpdb->prefix.'oa_';
+    $bounds=self::period_bounds($from,$to);
+    $funnels=self::get_funnels_with_steps($filters);
+    if (!empty($funnels) && count($funnels)>$limit) $funnels=array_slice($funnels,0,$limit);
+    $out=[];
+    foreach($funnels as $f){
+      $fid=intval($f['id'] ?? 0);
+      $steps=(array)($f['steps'] ?? []);
+      if ($fid<=0 || count($steps)<2) continue;
+      $step_nums=[];
+      foreach($steps as $step){
+        $sn=intval($step['step_num'] ?? 0);
+        if ($sn>0) $step_nums[]=$sn;
+      }
+      if (count($step_nums)<2) continue;
+      sort($step_nums);
+      $current_rows=$wpdb->get_results($wpdb->prepare(
+        "SELECT step_num, COALESCE(SUM(hits),0) as hits
+         FROM {$pfx}daily_funnels
+         WHERE funnel_id=%d AND day BETWEEN %s AND %s
+         GROUP BY step_num",
+        $fid,$bounds['current_from'],$bounds['current_to']
+      ), ARRAY_A);
+      $prev_rows=$wpdb->get_results($wpdb->prepare(
+        "SELECT step_num, COALESCE(SUM(hits),0) as hits
+         FROM {$pfx}daily_funnels
+         WHERE funnel_id=%d AND day BETWEEN %s AND %s
+         GROUP BY step_num",
+        $fid,$bounds['prev_from'],$bounds['prev_to']
+      ), ARRAY_A);
+      $curr_map=[]; $prev_map=[];
+      foreach((array)$current_rows as $r) $curr_map[intval($r['step_num'])]=max(0,intval($r['hits']));
+      foreach((array)$prev_rows as $r) $prev_map[intval($r['step_num'])]=max(0,intval($r['hits']));
+      $first=intval($step_nums[0]);
+      $last=intval($step_nums[count($step_nums)-1]);
+      $s1=max(0,intval($curr_map[$first] ?? 0));
+      $sl=max(0,intval($curr_map[$last] ?? 0));
+      $prev_s1=max(0,intval($prev_map[$first] ?? 0));
+      $prev_sl=max(0,intval($prev_map[$last] ?? 0));
+      $conv=($s1>0)?round(($sl/$s1)*100,1):0.0;
+      $prev_conv=($prev_s1>0)?round(($prev_sl/$prev_s1)*100,1):0.0;
+      $step_metrics=[];
+      $top_drop=null;
+      for($i=0;$i<count($steps);$i++){
+        $step=(array)$steps[$i];
+        $sn=intval($step['step_num'] ?? 0);
+        if ($sn<=0) continue;
+        $hits=max(0,intval($curr_map[$sn] ?? 0));
+        $prev_hits=max(0,intval($prev_map[$sn] ?? 0));
+        $next_step=(isset($steps[$i+1]) ? (array)$steps[$i+1] : null);
+        $next_sn=intval($next_step['step_num'] ?? 0);
+        $next_hits=$next_sn>0 ? max(0,intval($curr_map[$next_sn] ?? 0)) : 0;
+        $drop_count=($next_sn>0) ? max(0,$hits-$next_hits) : 0;
+        $drop_rate=($next_sn>0 && $hits>0) ? round(($drop_count/$hits)*100,1) : 0.0;
+        $advance_rate=($next_sn>0 && $hits>0) ? round(($next_hits/$hits)*100,1) : 0.0;
+        $metric=[
+          'step_num'=>$sn,
+          'type'=>sanitize_key((string)($step['step_type'] ?? '')),
+          'value'=>sanitize_text_field((string)($step['step_value'] ?? '')),
+          'hits'=>$hits,
+          'prev_hits'=>$prev_hits,
+          'hits_delta_pct'=>self::pct_change($hits,$prev_hits),
+          'next_step_num'=>$next_sn,
+          'next_hits'=>$next_hits,
+          'drop_count'=>$drop_count,
+          'drop_rate'=>$drop_rate,
+          'advance_rate'=>$advance_rate,
+        ];
+        if ($next_sn>0 && ($top_drop===null || $drop_rate>floatval($top_drop['drop_rate']))){
+          $top_drop=$metric;
+        }
+        $step_metrics[]=$metric;
+      }
+      $drop_reason='Stable progression';
+      if ($s1<=0){
+        $drop_reason='No step-1 traffic in selected range';
+      } elseif (!empty($top_drop)){
+        $label='Step '.intval($top_drop['step_num']).' -> '.intval($top_drop['next_step_num']);
+        $rate=floatval($top_drop['drop_rate']);
+        if ($rate>=60){
+          $drop_reason='Major drop at '.$label.' ('.number_format_i18n($rate,1).'%)';
+        } elseif ($rate>=35){
+          $drop_reason='Moderate drop at '.$label.' ('.number_format_i18n($rate,1).'%)';
+        } else {
+          $drop_reason='Healthy progression; biggest drop '.$label.' ('.number_format_i18n($rate,1).'%)';
+        }
+      }
+      $out[]=[
+        'id'=>$fid,
+        'name'=>sanitize_text_field((string)($f['name'] ?? '')),
+        'step1'=>$s1,
+        'step_last'=>$sl,
+        'conversion'=>$conv,
+        'prev_conversion'=>$prev_conv,
+        'conversion_delta_pct'=>self::pct_change($conv,$prev_conv),
+        'top_drop_reason'=>$drop_reason,
+        'top_drop_rate'=>(!empty($top_drop) ? floatval($top_drop['drop_rate']) : 0.0),
+        'steps'=>$step_metrics,
+        'period'=>[
+          'from'=>$bounds['current_from'],
+          'to'=>$bounds['current_to'],
+          'prev_from'=>$bounds['prev_from'],
+          'prev_to'=>$bounds['prev_to'],
+        ],
+      ];
+    }
+    return $out;
+  }
 
   public static function handle_funnels_post(){
     if (empty($_POST['oa_action'])) return;
