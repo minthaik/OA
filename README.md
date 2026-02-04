@@ -1,4 +1,4 @@
-# Ordelix Analytics (v0.4.5)
+# Ordelix Analytics (v0.4.6)
 Privacy-first, lightweight, local-first analytics for WordPress.
 
 ## Features
@@ -7,6 +7,7 @@ Privacy-first, lightweight, local-first analytics for WordPress.
 - Goals (page or event) + value attribution
 - Funnels (multi-step page/event)
 - Campaigns (UTM source/medium/campaign) with conversions/value
+- Saved views (segments) for reusable report filters
 - WooCommerce revenue aggregation (optional)
 - WooCommerce coupon analytics (orders, discount, attributed revenue)
 - Email reports + retention cleanup
@@ -32,6 +33,7 @@ window.ordelixTrack('quote_submit', {meta:'form=quote', value: 0});
 
 ## Roadmap
 - Product roadmap and phased execution plan: `docs/ROADMAP.md`
+- Active sprint logs: `docs/SPRINT-01.md`, `docs/SPRINT-02.md`
 
 ## Operations (WP-CLI)
 - Health checks: `wp ordelix health`

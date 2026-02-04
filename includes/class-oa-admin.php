@@ -149,16 +149,133 @@ class OA_Admin {
     ];
     return $scopes[$scope] ?? [];
   }
+  private static function get_segments_store(){
+    $store=get_option('oa_saved_segments',[]);
+    return is_array($store) ? $store : [];
+  }
+  private static function get_segments($scope){
+    $store=self::get_segments_store();
+    $rows=(isset($store[$scope]) && is_array($store[$scope])) ? $store[$scope] : [];
+    $allowed=self::filter_scope_fields($scope);
+    $out=[];
+    foreach($rows as $row){
+      if (!is_array($row)) continue;
+      $id=sanitize_key($row['id'] ?? '');
+      $name=sanitize_text_field($row['name'] ?? '');
+      if ($id==='' || $name==='') continue;
+      $filters=[];
+      foreach($allowed as $k){
+        $v=sanitize_text_field((string)(is_array($row['filters'] ?? null) ? ($row['filters'][$k] ?? '') : ''));
+        if ($k==='device'){
+          $v=sanitize_key($v);
+          if (!in_array($v,['desktop','mobile','tablet','unknown'],true)) $v='';
+        }
+        $filters[$k]=$v;
+      }
+      $out[]=[
+        'id'=>$id,
+        'name'=>$name,
+        'filters'=>$filters,
+        'created_at'=>sanitize_text_field((string)($row['created_at'] ?? '')),
+      ];
+    }
+    return $out;
+  }
+  private static function save_segments($scope,$segments){
+    $store=self::get_segments_store();
+    $store[$scope]=array_values((array)$segments);
+    update_option('oa_saved_segments',$store,false);
+  }
+  private static function find_segment($segments,$id){
+    foreach((array)$segments as $seg){
+      if ((string)($seg['id'] ?? '')===$id) return $seg;
+    }
+    return null;
+  }
+  private static function segment_notice_message($code){
+    $map=[
+      'saved'=>'Saved view created.',
+      'deleted'=>'Saved view deleted.',
+      'name_required'=>'Provide a name to save this view.',
+      'empty'=>'Set at least one filter before saving a view.',
+      'not_found'=>'Saved view was not found.',
+      'invalid'=>'Invalid saved-view action.',
+    ];
+    return $map[$code] ?? '';
+  }
+  private static function handle_segments_post($scope,$filters){
+    if (empty($_POST['oa_segment_action'])) return;
+    if (!self::can_manage()) return;
+    $posted_scope=sanitize_key($_POST['oa_segment_scope'] ?? '');
+    if ($posted_scope!==$scope) return;
+    check_admin_referer('oa_segments_'.$scope);
+    $action=sanitize_key($_POST['oa_segment_action']);
+    $segments=self::get_segments($scope);
+    $notice='invalid';
+    if ($action==='save'){
+      $name=sanitize_text_field($_POST['oa_segment_name'] ?? '');
+      if ($name===''){
+        $notice='name_required';
+      } else {
+        $has=false;
+        foreach((array)$filters as $v){ if ((string)$v!==''){ $has=true; break; } }
+        if (!$has){
+          $notice='empty';
+        } else {
+          $segments[]=[
+            'id'=>'seg_'.wp_generate_password(8,false,false),
+            'name'=>$name,
+            'filters'=>$filters,
+            'created_at'=>current_time('mysql'),
+          ];
+          if (count($segments)>40) $segments=array_slice($segments,-40);
+          self::save_segments($scope,$segments);
+          $notice='saved';
+        }
+      }
+    } elseif ($action==='delete'){
+      $id=sanitize_key($_POST['oa_segment_delete_id'] ?? '');
+      $before=count($segments);
+      $segments=array_values(array_filter($segments,function($seg) use ($id){
+        return (string)($seg['id'] ?? '')!==$id;
+      }));
+      if (count($segments)<$before){
+        self::save_segments($scope,$segments);
+        $notice='deleted';
+      } else {
+        $notice='not_found';
+      }
+    }
+
+    $redirect_args=[];
+    foreach($_GET as $k=>$v){
+      if (is_array($v)) continue;
+      if ($k==='oa_seg_notice') continue;
+      if (!preg_match('/^[A-Za-z0-9_-]+$/',(string)$k)) continue;
+      $redirect_args[$k]=sanitize_text_field(wp_unslash((string)$v));
+    }
+    $redirect_args['oa_seg_notice']=$notice;
+    wp_safe_redirect(add_query_arg($redirect_args,admin_url('admin.php')));
+    exit;
+  }
   private static function filter_inputs($scope='traffic'){
     $allowed=self::filter_scope_fields($scope);
+    $segments=self::get_segments($scope);
+    $selected_segment=isset($_GET['oa_segment']) ? sanitize_key($_GET['oa_segment']) : '';
+    $segment=(self::find_segment($segments,$selected_segment) ?: []);
+    $segment_filters=is_array($segment['filters'] ?? null) ? $segment['filters'] : [];
     $filters=[];
     $active_count=0;
     foreach($allowed as $k){
-      $v=isset($_GET['oa_'.$k]) ? sanitize_text_field(wp_unslash($_GET['oa_'.$k])) : '';
+      $qk='oa_'.$k;
+      $v=(isset($_GET[$qk]) && !is_array($_GET[$qk])) ? sanitize_text_field(wp_unslash($_GET[$qk])) : (string)($segment_filters[$k] ?? '');
       if ($k==='device') $v=sanitize_key($v);
       $filters[$k]=$v;
       if ($v!=='') $active_count++;
     }
+    self::handle_segments_post($scope,$filters);
+    $segments=self::get_segments($scope);
+    if (!$selected_segment || !self::find_segment($segments,$selected_segment)) $selected_segment='';
     $preserve_keys=['page','from','to','oa_range'];
     $hidden=[];
     foreach($preserve_keys as $k){
@@ -173,11 +290,21 @@ class OA_Admin {
     $reset_url=add_query_arg($reset_args,admin_url('admin.php'));
     $open=$active_count>0 ? ' open' : '';
     $active_label=$active_count>0 ? ($active_count.' active') : 'No active filters';
+    $notice_code=isset($_GET['oa_seg_notice']) ? sanitize_key($_GET['oa_seg_notice']) : '';
+    $notice_text=self::segment_notice_message($notice_code);
     ob_start();
     echo '<div class="oa-filter-strip"><details class="oa-filter-panel"'.$open.'>';
     echo '<summary><span>Advanced filters</span><span class="oa-filter-meta">'.esc_html($active_label).'</span></summary>';
+    if ($notice_text!=='') echo '<p class="oa-filter-notice">'.esc_html($notice_text).'</p>';
     echo '<form method="get" class="oa-range-form oa-filter-form">';
     foreach($hidden as $k=>$v) echo '<input type="hidden" name="'.esc_attr($k).'" value="'.esc_attr($v).'">';
+    if (!empty($segments)){
+      echo '<label class="oa-segment-row">Saved view <select name="oa_segment"><option value="">None</option>';
+      foreach($segments as $seg){
+        echo '<option value="'.esc_attr($seg['id']).'"'.selected($selected_segment,$seg['id'],false).'>'.esc_html($seg['name']).'</option>';
+      }
+      echo '</select></label>';
+    }
     if (in_array('device',$allowed,true)){
       $dv=(string)($filters['device'] ?? '');
       echo '<label>Device <select name="oa_device">';
@@ -195,6 +322,30 @@ class OA_Admin {
     echo '<button class="button">Apply filters</button>';
     echo '<a class="button" href="'.esc_url($reset_url).'">Reset filters</a>';
     echo '</form></details></div>';
+    if (self::can_manage()){
+      echo '<div class="oa-segment-admin">';
+      echo '<form method="post" class="oa-segment-admin-form">';
+      wp_nonce_field('oa_segments_'.$scope);
+      echo '<input type="hidden" name="oa_segment_action" value="save">';
+      echo '<input type="hidden" name="oa_segment_scope" value="'.esc_attr($scope).'">';
+      echo '<label>Save current as <input type="text" name="oa_segment_name" placeholder="My saved view"></label>';
+      echo '<button class="button">Save view</button>';
+      echo '</form>';
+      if (!empty($segments)){
+        echo '<form method="post" class="oa-segment-admin-form">';
+        wp_nonce_field('oa_segments_'.$scope);
+        echo '<input type="hidden" name="oa_segment_action" value="delete">';
+        echo '<input type="hidden" name="oa_segment_scope" value="'.esc_attr($scope).'">';
+        echo '<label>Delete view <select name="oa_segment_delete_id">';
+        foreach($segments as $seg){
+          echo '<option value="'.esc_attr($seg['id']).'">'.esc_html($seg['name']).'</option>';
+        }
+        echo '</select></label>';
+        echo '<button class="button" onclick="return confirm(\'Delete this saved view?\');">Delete</button>';
+        echo '</form>';
+      }
+      echo '</div>';
+    }
     return [$filters,ob_get_clean()];
   }
   public static function page_dashboard(){
