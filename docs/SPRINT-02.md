@@ -27,6 +27,10 @@ This sprint starts Phase 2 (analytics depth) by making cross-report filtering re
   - [x] Private segments (owner only)
   - [x] Shared segments (all users with analytics access)
 - [x] Default view per page (per-user preference)
+- [x] Segment migration tooling:
+  - [x] Export segments JSON from Settings
+  - [x] Import segments (merge)
+  - [x] Import segments (replace)
 - [x] Segment operation notices (saved/deleted/default/errors)
 - [x] Segment control UI polish in `assets/admin.css`
 
@@ -39,6 +43,6 @@ This sprint starts Phase 2 (analytics depth) by making cross-report filtering re
   - Default view persists per user and auto-applies when no explicit filter query is set
 
 ## Next sprint candidates
-- Add segment export/import for migration across sites.
 - Add audit metadata (last used, usage count) for segment lifecycle cleanup.
 - Add quick favorite-segment chips near the filter bar.
+- Start attribution mode implementation (first-touch / last-touch).

@@ -2,13 +2,13 @@
 /**
  * Plugin Name: Ordelix Analytics
  * Description: Privacy-first, lightweight, local-first analytics for WordPress (no external services).
- * Version: 0.4.7
+ * Version: 0.4.8
  * Author: Ordelix
  * Text Domain: ordelix-analytics
  */
 if (!defined('ABSPATH')) exit;
 
-define('OA_VERSION', '0.4.7');
+define('OA_VERSION', '0.4.8');
 define('OA_PLUGIN_FILE', __FILE__);
 define('OA_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('OA_PLUGIN_URL', plugin_dir_url(__FILE__));

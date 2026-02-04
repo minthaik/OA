@@ -15,6 +15,12 @@
   <?php if (!empty($compliance_error)): ?>
     <div class="notice notice-error is-dismissible oa-notice"><p><?php echo esc_html($compliance_error); ?></p></div>
   <?php endif; ?>
+  <?php if (!empty($segments_notice)): ?>
+    <div class="notice notice-success is-dismissible oa-notice"><p><?php echo esc_html($segments_notice); ?></p></div>
+  <?php endif; ?>
+  <?php if (!empty($segments_error)): ?>
+    <div class="notice notice-error is-dismissible oa-notice"><p><?php echo esc_html($segments_error); ?></p></div>
+  <?php endif; ?>
   <h1>Settings</h1>
   <form method="post" action="options.php" class="oa-settings-form">
     <?php settings_fields('oa_settings_group'); ?>
@@ -148,6 +154,32 @@
         <button class="button button-link-delete" onclick="return confirm('Permanently erase all analytics daily rows?');">Erase all analytics daily rows</button>
       </div>
       <p class="oa-muted">Type <code>ERASE ALL</code> exactly to confirm.</p>
+    </form>
+  </div>
+
+  <div class="oa-card">
+    <div class="oa-card-h">Segments migration</div>
+    <p class="oa-muted">Export/import saved views (segments) across sites. Imported private segments are assigned to your current user.</p>
+
+    <form method="post" class="oa-compliance-form">
+      <?php wp_nonce_field('oa_segments_tools'); ?>
+      <input type="hidden" name="oa_segments_tools_action" value="export_segments">
+      <div class="oa-form-actions">
+        <button class="button">Download segments JSON</button>
+      </div>
+    </form>
+
+    <form method="post" class="oa-compliance-form">
+      <?php wp_nonce_field('oa_segments_tools'); ?>
+      <div class="oa-form-row">
+        <label>Segments JSON
+          <textarea name="oa_segments_json" rows="8" placeholder='{"segments":{"traffic":[{"name":"Mobile Pricing","filters":{"device":"mobile","path":"/pricing"}}]}}'><?php echo esc_textarea($segments_json_input ?? ''); ?></textarea>
+        </label>
+      </div>
+      <div class="oa-form-actions">
+        <button class="button" type="submit" name="oa_segments_tools_action" value="import_merge">Import and merge</button>
+        <button class="button" type="submit" name="oa_segments_tools_action" value="import_replace" onclick="return confirm('Replace all existing saved views with imported segments?');">Import and replace</button>
+      </div>
     </form>
   </div>
 

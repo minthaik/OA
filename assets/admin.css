@@ -509,7 +509,8 @@ body[class*="ordelix-analytics_page_ordelix-analytics-"] #wpbody-content .error{
   color:#2f4668;
 }
 .oa-page-settings .oa-form-row input,
-.oa-page-settings .oa-form-row select{
+.oa-page-settings .oa-form-row select,
+.oa-page-settings .oa-form-row textarea{
   width:100%;
   min-height:34px;
 }

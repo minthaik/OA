@@ -188,7 +188,7 @@ class OA_Admin {
       if ($id==='' || $name==='') continue;
       $visibility=in_array(($row['visibility'] ?? 'shared'),['shared','private'],true) ? $row['visibility'] : 'shared';
       $owner_id=max(0,intval($row['owner_id'] ?? 0));
-      if ($visibility==='private' && $owner_id>0 && $owner_id!==$uid && !$is_admin) continue;
+      if ($visibility==='private' && ($owner_id<=0 || ($owner_id!==$uid && !$is_admin))) continue;
       $filters=[];
       foreach($allowed as $k){
         $v=sanitize_text_field((string)(is_array($row['filters'] ?? null) ? ($row['filters'][$k] ?? '') : ''));
@@ -213,6 +213,67 @@ class OA_Admin {
     $store=self::get_segments_store();
     $store[$scope]=array_values((array)$segments);
     update_option('oa_saved_segments',$store,false);
+  }
+  private static function normalized_segments_store($store,$override_owner_id=0){
+    $out=[];
+    $seen=[];
+    foreach(['traffic','goals','funnels','campaigns','coupons','revenue'] as $scope){
+      $allowed=self::filter_scope_fields($scope);
+      $rows=(isset($store[$scope]) && is_array($store[$scope])) ? $store[$scope] : [];
+      $out[$scope]=[];
+      foreach($rows as $row){
+        if (!is_array($row)) continue;
+        $name=sanitize_text_field((string)($row['name'] ?? ''));
+        if ($name==='') continue;
+        $filters=[];
+        $has=false;
+        foreach($allowed as $k){
+          $v=sanitize_text_field((string)(is_array($row['filters'] ?? null) ? ($row['filters'][$k] ?? '') : ''));
+          if ($k==='device'){
+            $v=sanitize_key($v);
+            if (!in_array($v,['desktop','mobile','tablet','unknown'],true)) $v='';
+          }
+          if ($v!=='') $has=true;
+          $filters[$k]=$v;
+        }
+        if (!$has) continue;
+        $id=sanitize_key((string)($row['id'] ?? ''));
+        if ($id==='') $id='seg_'.wp_generate_password(8,false,false);
+        while(isset($seen[$scope.'|'.$id])) $id='seg_'.wp_generate_password(8,false,false);
+        $seen[$scope.'|'.$id]=1;
+        $visibility=in_array(($row['visibility'] ?? 'shared'),['shared','private'],true)?$row['visibility']:'shared';
+        $owner_id=max(0,intval($row['owner_id'] ?? 0));
+        if ($override_owner_id>0) $owner_id=$override_owner_id;
+        if ($owner_id<=0) $owner_id=max(1,intval(get_current_user_id()));
+        $out[$scope][]=[
+          'id'=>$id,
+          'name'=>$name,
+          'filters'=>$filters,
+          'visibility'=>$visibility,
+          'owner_id'=>$owner_id,
+          'created_at'=>sanitize_text_field((string)($row['created_at'] ?? current_time('mysql'))),
+        ];
+      }
+      if (count($out[$scope])>120) $out[$scope]=array_slice($out[$scope],-120);
+    }
+    return $out;
+  }
+  private static function count_segments_store($store){
+    $n=0;
+    foreach((array)$store as $scope=>$rows){
+      if (!is_array($rows)) continue;
+      $n+=count($rows);
+    }
+    return $n;
+  }
+  private static function merge_segments_store($base,$add){
+    $merged=[];
+    foreach(['traffic','goals','funnels','campaigns','coupons','revenue'] as $scope){
+      $a=(isset($base[$scope]) && is_array($base[$scope])) ? $base[$scope] : [];
+      $b=(isset($add[$scope]) && is_array($add[$scope])) ? $add[$scope] : [];
+      $merged[$scope]=array_merge($a,$b);
+    }
+    return self::normalized_segments_store($merged,0);
   }
   private static function find_segment($segments,$id){
     foreach((array)$segments as $seg){
@@ -536,6 +597,9 @@ class OA_Admin {
     if(!self::can_manage()) wp_die('Nope');
     $compliance_notice='';
     $compliance_error='';
+    $segments_notice='';
+    $segments_error='';
+    $segments_json_input='';
     list($compliance_from,$compliance_to)=self::compliance_range_inputs($_POST['oa_compliance_from'] ?? '',$_POST['oa_compliance_to'] ?? '');
     if (!empty($_POST['oa_compliance_action'])) {
       check_admin_referer('oa_compliance_tools');
@@ -562,6 +626,50 @@ class OA_Admin {
         }
       } else {
         $compliance_error='Unknown compliance action.';
+      }
+    }
+    if (!empty($_POST['oa_segments_tools_action'])) {
+      check_admin_referer('oa_segments_tools');
+      $action=sanitize_key($_POST['oa_segments_tools_action']);
+      if ($action==='export_segments'){
+        $payload=[
+          'version'=>OA_VERSION,
+          'exported_at'=>current_time('mysql'),
+          'segments'=>self::normalized_segments_store(self::get_segments_store(),0),
+        ];
+        $stamp=wp_date('Ymd_His', current_time('timestamp'));
+        $fname='ordelix_segments_export_'.$stamp.'.json';
+        nocache_headers();
+        header('Content-Type: application/json; charset=utf-8');
+        header('Content-Disposition: attachment; filename="'.$fname.'"');
+        echo wp_json_encode($payload, JSON_PRETTY_PRINT);
+        exit;
+      } elseif ($action==='import_merge' || $action==='import_replace'){
+        $segments_json_input=(string)wp_unslash($_POST['oa_segments_json'] ?? '');
+        $decoded=json_decode($segments_json_input,true);
+        if (!is_array($decoded)){
+          $segments_error='Invalid JSON payload for segments import.';
+        } else {
+          $source=(isset($decoded['segments']) && is_array($decoded['segments'])) ? $decoded['segments'] : $decoded;
+          $import=self::normalized_segments_store($source,intval(get_current_user_id()));
+          $import_count=self::count_segments_store($import);
+          if ($import_count===0){
+            $segments_error='No valid segments found in imported JSON.';
+          } else {
+            if ($action==='import_merge'){
+              $base=self::normalized_segments_store(self::get_segments_store(),0);
+              $final=self::merge_segments_store($base,$import);
+              $segments_notice='Segments merged successfully ('.self::count_segments_store($final).' total saved views).';
+            } else {
+              $final=$import;
+              $segments_notice='Segments replaced successfully ('.self::count_segments_store($final).' total saved views).';
+            }
+            update_option('oa_saved_segments',$final,false);
+            $segments_json_input='';
+          }
+        }
+      } else {
+        $segments_error='Unknown segments-tools action.';
       }
     }
     $opt=get_option('oa_settings',[]);
