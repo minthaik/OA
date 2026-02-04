@@ -24,6 +24,7 @@ foreach($daily as $d){
     </div>
     <div class="oa-card-tools">
       <button type="button" class="button button-primary" data-oa-export="coupons" data-from="<?php echo esc_attr($from); ?>" data-to="<?php echo esc_attr($to); ?>">Export Coupons CSV</button>
+      <span class="oa-save-slot" data-oa-save-slot></span>
     </div>
   </div>
   <div class="oa-controls">

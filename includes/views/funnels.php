@@ -5,6 +5,9 @@
       <h1>Funnels</h1>
       <p class="oa-subtitle">Build multi-step journeys and track progression quality over time.</p>
     </div>
+    <div class="oa-card-tools">
+      <span class="oa-save-slot" data-oa-save-slot></span>
+    </div>
   </div>
   <div class="oa-controls">
     <?php if (!empty($range_html)) echo $range_html; ?>

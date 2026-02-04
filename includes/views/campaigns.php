@@ -1,6 +1,9 @@
 <?php if(!defined('ABSPATH')) exit; ?>
 <div class="wrap oa-wrap">
-  <h1>Campaigns</h1>
+  <div class="oa-page-head">
+    <h1>Campaigns</h1>
+    <span class="oa-save-slot" data-oa-save-slot></span>
+  </div>
   <div class="oa-controls">
     <?php if (!empty($range_html)) echo $range_html; ?>
     <?php if (!empty($filters_html)) echo $filters_html; ?>

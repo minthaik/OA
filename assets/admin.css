@@ -61,6 +61,18 @@ body[class*="ordelix-analytics_page_ordelix-analytics-"] #wpbody-content .error{
   margin:0;
 }
 .oa-hero .oa-subtitle{margin-top:4px}
+.oa-page-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+  margin:0;
+}
+.oa-page-head .oa-save-slot,
+.oa-hero .oa-card-tools .oa-save-slot{
+  margin-left:auto;
+}
 
 .oa-card{
   background:linear-gradient(180deg,#fff,#fbfdff);
@@ -765,6 +777,8 @@ body[class*="ordelix-analytics_page_ordelix-analytics-"] #wpbody-content .error{
   .oa-kpis-modern .oa-kpi-card:last-child:nth-child(2n+1){grid-column:auto}
   .oa-2{grid-template-columns:1fr}
   .oa-controls{gap:8px}
+  .oa-page-head{align-items:flex-start}
+  .oa-page-head .oa-save-slot{width:100%;margin-left:0}
   .oa-controls .oa-range{flex-basis:100%;min-width:0}
   .oa-range .oa-range-primary{padding:10px}
   .oa-range .oa-segment{width:100%}

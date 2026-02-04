@@ -28,6 +28,7 @@ $coupons_url=add_query_arg($coupons_url_args,admin_url('admin.php'));
     <div class="oa-card-tools">
       <button type="button" class="button button-primary" data-oa-export="revenue" data-from="<?php echo esc_attr($from); ?>" data-to="<?php echo esc_attr($to); ?>">Export Revenue CSV</button>
       <a class="button" href="<?php echo esc_url($coupons_url); ?>">Open coupons</a>
+      <span class="oa-save-slot" data-oa-save-slot></span>
     </div>
   </div>
   <div class="oa-controls">
