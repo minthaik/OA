@@ -293,6 +293,30 @@
     slot.appendChild(panel);
   }
 
+  function initSaveViewDismiss(){
+    function closeAll(){
+      document.querySelectorAll('details.oa-save-panel[open]').forEach(function(panel){
+        panel.open=false;
+      });
+    }
+    document.addEventListener('click', function(e){
+      var panel=e.target && e.target.closest ? e.target.closest('details.oa-save-panel') : null;
+      if(!panel){
+        closeAll();
+        return;
+      }
+      var summary=e.target.closest('summary');
+      if(summary && panel.contains(summary)){
+        document.querySelectorAll('details.oa-save-panel[open]').forEach(function(other){
+          if(other!==panel) other.open=false;
+        });
+      }
+    });
+    document.addEventListener('keydown', function(e){
+      if((e.key||'')==='Escape') closeAll();
+    });
+  }
+
   function initCopySqlButtons(){
     document.querySelectorAll('[data-oa-copy-sql]').forEach(function(btn){
       btn.addEventListener('click', function(){
@@ -512,6 +536,7 @@
   $(function(){
     initAdvancedFilterDock();
     initSaveViewDock();
+    initSaveViewDismiss();
     hideThirdPartyNotices();
     initTabs();
     initCopyLinkButtons();
