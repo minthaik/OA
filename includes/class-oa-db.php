@@ -280,7 +280,7 @@ class OA_DB {
       add_option('oa_settings', [
         'enabled'=>1,'strip_query'=>1,'track_logged_in'=>0,'respect_dnt'=>0,'sample_rate'=>1,
         'rate_limit_per_min'=>120,'approx_uniques'=>0,'retention_days'=>180,'auto_events'=>1,
-        'auto_outbound'=>1,'auto_downloads'=>1,'auto_tel'=>1,'auto_mailto'=>1,'auto_forms'=>1,
+        'auto_outbound'=>1,'auto_downloads'=>1,'auto_tel'=>1,'auto_mailto'=>1,'auto_forms'=>1,'retention_signals'=>1,
         'utm_attribution_days'=>30,'attribution_mode'=>'first_touch',
         'email_reports'=>0,'email_reports_freq'=>'weekly','email_reports_to'=>get_option('admin_email'),
         'anomaly_alerts'=>1,'anomaly_threshold_pct'=>35,'anomaly_baseline_days'=>7,

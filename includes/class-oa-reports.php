@@ -1292,6 +1292,81 @@ class OA_Reports {
     return $out;
   }
 
+  private static function parse_gap_days($meta){
+    $meta=(string)$meta;
+    if (preg_match('/gap_days\s*=\s*(\d+)/i',$meta,$m)) return max(1,intval($m[1]));
+    return 1;
+  }
+
+  public static function retention_stats($from,$to){
+    global $wpdb; $pfx=$wpdb->prefix.'oa_';
+    $rows=$wpdb->get_results($wpdb->prepare(
+      "SELECT day,event_name,meta,COALESCE(SUM(count),0) as n
+       FROM {$pfx}daily_events
+       WHERE day BETWEEN %s AND %s
+         AND event_name IN ('visitor_first_seen','visitor_returned')
+       GROUP BY day,event_name,meta
+       ORDER BY day ASC",
+      $from,$to
+    ), ARRAY_A);
+    $trend=[];
+    $start=strtotime($from.' 00:00:00');
+    $end=strtotime($to.' 00:00:00');
+    if (!$start || !$end || $end<$start){
+      $end=current_time('timestamp');
+      $start=$end-(29*DAY_IN_SECONDS);
+    }
+    for($ts=$start;$ts<=$end;$ts+=DAY_IN_SECONDS){
+      $day=wp_date('Y-m-d',$ts);
+      $trend[$day]=['day'=>$day,'new'=>0,'returning'=>0,'returning_rate'=>0.0];
+    }
+    $buckets=['1d'=>0,'2_3d'=>0,'4_7d'=>0,'8_14d'=>0,'15_plus_d'=>0];
+    $total_new=0;
+    $total_returning=0;
+    foreach((array)$rows as $r){
+      $day=(string)($r['day'] ?? '');
+      if (!isset($trend[$day])) continue;
+      $name=sanitize_key((string)($r['event_name'] ?? ''));
+      $n=max(0,intval($r['n'] ?? 0));
+      if ($name==='visitor_first_seen'){
+        $trend[$day]['new']+=$n;
+        $total_new+=$n;
+        continue;
+      }
+      if ($name!=='visitor_returned') continue;
+      $trend[$day]['returning']+=$n;
+      $total_returning+=$n;
+      $gap=self::parse_gap_days((string)($r['meta'] ?? ''));
+      if ($gap<=1) $buckets['1d']+=$n;
+      elseif ($gap<=3) $buckets['2_3d']+=$n;
+      elseif ($gap<=7) $buckets['4_7d']+=$n;
+      elseif ($gap<=14) $buckets['8_14d']+=$n;
+      else $buckets['15_plus_d']+=$n;
+    }
+    foreach($trend as $day=>$row){
+      $den=max(0,intval($row['new']))+max(0,intval($row['returning']));
+      $trend[$day]['returning_rate']=$den>0 ? round((($row['returning']/$den)*100.0),1) : 0.0;
+    }
+    $active_days=0;
+    $sum_rate=0.0;
+    foreach($trend as $row){
+      if ((intval($row['new'])+intval($row['returning']))<=0) continue;
+      $active_days++;
+      $sum_rate+=floatval($row['returning_rate']);
+    }
+    $avg_rate=$active_days>0 ? round($sum_rate/$active_days,1) : 0.0;
+    return [
+      'kpis'=>[
+        'new_total'=>$total_new,
+        'returning_total'=>$total_returning,
+        'returning_rate'=>$avg_rate,
+        'active_days'=>$active_days,
+      ],
+      'trend'=>array_values($trend),
+      'gap_buckets'=>$buckets,
+    ];
+  }
+
   public static function handle_funnels_post(){
     if (empty($_POST['oa_action'])) return;
     if (!current_user_can('ordelix_analytics_manage')) return;

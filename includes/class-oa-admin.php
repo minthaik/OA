@@ -41,6 +41,7 @@ class OA_Admin {
     add_submenu_page('ordelix-analytics','Anomalies','Anomalies','ordelix_analytics_view','ordelix-analytics-anomalies',[__CLASS__,'page_anomalies']);
     add_submenu_page('ordelix-analytics','Goals','Goals','ordelix_analytics_view','ordelix-analytics-goals',[__CLASS__,'page_goals']);
     add_submenu_page('ordelix-analytics','Funnels','Funnels','ordelix_analytics_view','ordelix-analytics-funnels',[__CLASS__,'page_funnels']);
+    add_submenu_page('ordelix-analytics','Retention','Retention','ordelix_analytics_view','ordelix-analytics-retention',[__CLASS__,'page_retention']);
     add_submenu_page('ordelix-analytics','Campaigns','Campaigns','ordelix_analytics_view','ordelix-analytics-campaigns',[__CLASS__,'page_campaigns']);
     if (class_exists('WooCommerce')) {
       add_submenu_page('ordelix-analytics','Coupons','Coupons','ordelix_analytics_view','ordelix-analytics-coupons',[__CLASS__,'page_coupons']);
@@ -55,7 +56,7 @@ class OA_Admin {
   public static function sanitize($in){
     $in=is_array($in)?$in:[];
     $out=get_option('oa_settings',[]);
-    foreach(['enabled','strip_query','track_logged_in','respect_dnt','approx_uniques','auto_events','auto_outbound','auto_downloads','auto_tel','auto_mailto','auto_forms','email_reports','anomaly_alerts','keep_data_on_uninstall'] as $b){
+    foreach(['enabled','strip_query','track_logged_in','respect_dnt','approx_uniques','auto_events','auto_outbound','auto_downloads','auto_tel','auto_mailto','auto_forms','retention_signals','email_reports','anomaly_alerts','keep_data_on_uninstall'] as $b){
       $out[$b]=empty($in[$b])?0:1;
     }
     $out['trust_proxy_headers']=empty($in['trust_proxy_headers'])?0:1;
@@ -643,6 +644,13 @@ class OA_Admin {
     $stats=OA_Reports::funnels_stats($from,$to,50,$filters);
     $diagnostics=OA_Reports::funnels_diagnostics($from,$to,$filters,50);
     include OA_PLUGIN_DIR.'includes/views/funnels.php';
+  }
+  public static function page_retention(){
+    if(!self::can_view()) wp_die('Nope');
+    $can_manage=self::can_manage();
+    list($from,$to,$range_html)=self::range_inputs();
+    $retention=OA_Reports::retention_stats($from,$to);
+    include OA_PLUGIN_DIR.'includes/views/retention.php';
   }
   public static function page_campaigns(){
     if(!self::can_view()) wp_die('Nope');

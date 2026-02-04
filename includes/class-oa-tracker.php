@@ -18,6 +18,7 @@ class OA_Tracker {
       'autoTel'=>!empty($opt['auto_tel']),
       'autoMailto'=>!empty($opt['auto_mailto']),
       'autoForms'=>!empty($opt['auto_forms']),
+      'retentionSignals'=>(!isset($opt['retention_signals']) || !empty($opt['retention_signals'])),
       'utmAttributionDays'=>max(1,min(365,intval($opt['utm_attribution_days'] ?? 30))),
       'attributionMode'=>$attr_mode,
       'consentMode'=>sanitize_key($opt['consent_mode'] ?? 'off'),

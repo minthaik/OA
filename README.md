@@ -4,9 +4,11 @@ Privacy-first, lightweight, local-first analytics for WordPress.
 ## Features
 - Pageviews, top pages, referrers
 - Auto events: outbound, downloads, tel:, mailto:, form submits
+- Optional retention signals (`visitor_first_seen`, `visitor_returned`)
 - Goals (page or event) + value attribution
 - Funnels (multi-step page/event)
 - Funnel diagnostics (step drop-off and period-over-period conversion delta)
+- Retention report basics (new vs returning visitors + return-gap profile)
 - Campaigns (UTM source/medium/campaign) with conversions/value
 - Attribution mode controls (first-touch / last-touch)
 - Campaign CSV exports include attribution metadata for auditability

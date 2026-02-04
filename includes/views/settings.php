@@ -88,6 +88,7 @@
         <label class="oa-toggle"><input type="checkbox" name="oa_settings[auto_tel]" value="1" <?php checked(!empty($opt['auto_tel'])); ?>> Phone clicks</label>
         <label class="oa-toggle"><input type="checkbox" name="oa_settings[auto_mailto]" value="1" <?php checked(!empty($opt['auto_mailto'])); ?>> Email clicks</label>
         <label class="oa-toggle"><input type="checkbox" name="oa_settings[auto_forms]" value="1" <?php checked(!empty($opt['auto_forms'])); ?>> Form submits</label>
+        <label class="oa-toggle"><input type="checkbox" name="oa_settings[retention_signals]" value="1" <?php checked(!empty($opt['retention_signals']) || !isset($opt['retention_signals'])); ?>> Retention signals (new vs returning)</label>
       </div>
     </div>
 

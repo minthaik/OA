@@ -44,7 +44,7 @@ foreach($trend_rows as $r){
 }
 if (!empty($trend_rows)) $avg_views=$sum_views/count($trend_rows);
 
-$export_types=['pages','referrers','events','goals','campaigns','revenue'];
+$export_types=['pages','referrers','events','goals','campaigns','retention','revenue'];
 if (class_exists('WooCommerce')) $export_types[]='coupons';
 ?>
 <div class="wrap oa-wrap">

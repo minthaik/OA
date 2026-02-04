@@ -117,6 +117,39 @@
     if(attrMode==='last_touch') return lastTouchUtm || firstTouchUtm || null;
     return firstTouchUtm || lastTouchUtm || null;
   }
+  function ymdNow(){
+    var d=new Date();
+    var y=d.getFullYear();
+    var m=('0'+(d.getMonth()+1)).slice(-2);
+    var day=('0'+d.getDate()).slice(-2);
+    return y+'-'+m+'-'+day;
+  }
+  function daysBetweenYmd(a,b){
+    var ad=new Date(String(a||'')+'T00:00:00');
+    var bd=new Date(String(b||'')+'T00:00:00');
+    var ms=bd.getTime()-ad.getTime();
+    if(!isFinite(ms)) return 1;
+    return Math.max(1, Math.round(ms/86400000));
+  }
+  function readVisitState(){
+    var raw='';
+    try{
+      raw=window.localStorage ? window.localStorage.getItem('oa_visit_state') : '';
+    }catch(e){ raw=''; }
+    if(!raw) raw=getCookie('oa_vs');
+    try{
+      var state=JSON.parse(raw||'');
+      if(!state || typeof state!=='object') return null;
+      return state;
+    }catch(e){ return null; }
+  }
+  function storeVisitState(state){
+    var payload=JSON.stringify(state || {});
+    try{
+      if(window.localStorage) window.localStorage.setItem('oa_visit_state', payload);
+    }catch(e){}
+    setCookie('oa_vs', payload, 730);
+  }
   function send(payload){
     if(!hasConsent()) return;
     try{
@@ -135,6 +168,35 @@
     send({t:'ev',p:normPath(location.href),r:document.referrer||'',d:deviceClass(),utm:utm()||undefined,e:{n:String(name||'custom'),k:String(meta||'')},v:value||0});
   }
   window.ordelixTrack=function(name, props){ props=props||{}; ev(name, props.meta||'', props.value||0); };
+  function trackRetentionSignals(){
+    if(!cfg.retentionSignals) return;
+    if(!hasConsent()) return;
+    var today=ymdNow();
+    var state=readVisitState() || {};
+    if(!state.first){
+      state.first=today;
+      state.last=today;
+      state.last_return_event='';
+      storeVisitState(state);
+      ev('visitor_first_seen','day='+today,0);
+      return;
+    }
+    var last=String(state.last || state.first || '');
+    if(last!==today){
+      var gap=daysBetweenYmd(last,today);
+      if(state.last_return_event!==today){
+        ev('visitor_returned','gap_days='+gap,0);
+        state.last_return_event=today;
+      }
+      state.last=today;
+      storeVisitState(state);
+      return;
+    }
+    if(!state.last){
+      state.last=today;
+      storeVisitState(state);
+    }
+  }
 
   function initAuto(){
     if(!cfg.autoEvents) return;
@@ -167,6 +229,7 @@
     }
   }
 
+  trackRetentionSignals();
   pageview();
   initAuto();
 })();

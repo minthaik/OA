@@ -18,6 +18,7 @@ This document is the execution path to take the plugin from current state to a c
 - Attribution mode selector for campaign crediting (first touch / last touch).
 - Campaign exports include attribution metadata for downstream BI audit trails.
 - Funnel diagnostics surfaced in UI (step drop-off and period trend delta).
+- Retention basics page (new vs returning visitor signals + return-gap profile).
 - Modernized admin UI foundation.
 - Regression smoke harness via WP-CLI (`regression-smoke`) and PowerShell runner.
 - Active sprint logs: `docs/SPRINT-01.md`, `docs/SPRINT-02.md`
@@ -169,8 +170,8 @@ Priority: P2
 - [ ] Release docs and troubleshooting guide.
 
 ## P1
-- [ ] Global filters and saved segments.
-- [ ] Funnel diagnostics and retention reporting.
+- [x] Global filters and saved segments.
+- [x] Funnel diagnostics and retention reporting.
 - [x] Attribution modes.
 - [ ] Commerce intelligence drilldowns.
 
