@@ -293,21 +293,22 @@
     slot.appendChild(panel);
   }
 
-  function initSaveViewDismiss(){
+  function initPanelDismiss(){
+    var panelSelector='details.oa-save-panel, details.oa-filter-panel';
     function closeAll(){
-      document.querySelectorAll('details.oa-save-panel[open]').forEach(function(panel){
+      document.querySelectorAll(panelSelector+'[open]').forEach(function(panel){
         panel.open=false;
       });
     }
     document.addEventListener('click', function(e){
-      var panel=e.target && e.target.closest ? e.target.closest('details.oa-save-panel') : null;
+      var panel=e.target && e.target.closest ? e.target.closest(panelSelector) : null;
       if(!panel){
         closeAll();
         return;
       }
       var summary=e.target.closest('summary');
       if(summary && panel.contains(summary)){
-        document.querySelectorAll('details.oa-save-panel[open]').forEach(function(other){
+        document.querySelectorAll(panelSelector+'[open]').forEach(function(other){
           if(other!==panel) other.open=false;
         });
       }
@@ -536,7 +537,7 @@
   $(function(){
     initAdvancedFilterDock();
     initSaveViewDock();
-    initSaveViewDismiss();
+    initPanelDismiss();
     hideThirdPartyNotices();
     initTabs();
     initCopyLinkButtons();
