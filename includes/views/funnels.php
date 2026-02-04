@@ -132,5 +132,6 @@
       <?php endforeach; endif; ?>
       </tbody>
     </table>
+    <?php if (!empty($funnels_pager)) echo $funnels_pager; ?>
   </div>
 </div>

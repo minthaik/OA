@@ -79,6 +79,7 @@ foreach($daily as $d){
         <?php endforeach; endif; ?>
         </tbody>
       </table>
+      <?php if (!empty($rows_pager)) echo $rows_pager; ?>
     </div>
 
     <div class="oa-card">

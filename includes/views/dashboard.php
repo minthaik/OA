@@ -159,6 +159,7 @@ if (class_exists('WooCommerce')) $export_types[]='coupons';
       <?php endforeach; ?>
       </tbody>
     </table>
+    <?php if (!empty($table_pagers['funnels'])) echo $table_pagers['funnels']; ?>
   </div>
   <?php endif; ?>
 
@@ -176,6 +177,7 @@ if (class_exists('WooCommerce')) $export_types[]='coupons';
         <?php else: foreach($data['tables']['pages'] as $r): ?><tr><td><?php echo esc_html($r['path']); ?></td><td><?php echo esc_html(number_format_i18n((int)$r['views'])); ?></td></tr><?php endforeach; endif; ?>
         </tbody>
       </table>
+      <?php if (!empty($table_pagers['pages'])) echo $table_pagers['pages']; ?>
     </div>
     <div class="oa-card">
       <div class="oa-card-head">
@@ -190,6 +192,7 @@ if (class_exists('WooCommerce')) $export_types[]='coupons';
         <?php else: foreach($data['tables']['referrers'] as $r): ?><tr><td><?php echo esc_html($r['ref_domain']); ?></td><td><?php echo esc_html(number_format_i18n((int)$r['views'])); ?></td></tr><?php endforeach; endif; ?>
         </tbody>
       </table>
+      <?php if (!empty($table_pagers['referrers'])) echo $table_pagers['referrers']; ?>
     </div>
     <div class="oa-card">
       <div class="oa-card-head">
@@ -204,6 +207,7 @@ if (class_exists('WooCommerce')) $export_types[]='coupons';
         <?php else: foreach($data['tables']['events'] as $r): ?><tr><td><?php echo esc_html($r['event_name']); ?></td><td><?php echo esc_html(number_format_i18n((int)$r['hits'])); ?></td></tr><?php endforeach; endif; ?>
         </tbody>
       </table>
+      <?php if (!empty($table_pagers['events'])) echo $table_pagers['events']; ?>
     </div>
     <div class="oa-card">
       <div class="oa-card-head">
@@ -218,6 +222,7 @@ if (class_exists('WooCommerce')) $export_types[]='coupons';
         <?php else: foreach($data['tables']['goals'] as $r): ?><tr><td><?php echo esc_html($r['name']); ?></td><td><?php echo esc_html(number_format_i18n((int)$r['hits'])); ?></td><td><?php echo esc_html(number_format_i18n((float)$r['value'],2)); ?></td></tr><?php endforeach; endif; ?>
         </tbody>
       </table>
+      <?php if (!empty($table_pagers['goals'])) echo $table_pagers['goals']; ?>
     </div>
   </div>
 </div>

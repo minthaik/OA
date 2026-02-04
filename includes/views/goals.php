@@ -74,5 +74,6 @@
       <?php endforeach; endif; ?>
       </tbody>
     </table>
+    <?php if (!empty($stats_pager)) echo $stats_pager; ?>
   </div>
 </div>

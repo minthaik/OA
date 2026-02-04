@@ -1,7 +1,7 @@
 <?php if(!defined('ABSPATH')) exit; ?>
 <?php
 $kpis=(array)($retention['kpis'] ?? []);
-$trend=(array)($retention['trend'] ?? []);
+$trend=(array)($retention['trend_paged']['rows'] ?? ($retention['trend'] ?? []));
 $buckets=(array)($retention['gap_buckets'] ?? []);
 $bucket_labels=[
   '1d'=>'1 day',
@@ -64,6 +64,7 @@ foreach($buckets as $n) $max_bucket=max($max_bucket,intval($n));
         <?php endforeach; endif; ?>
         </tbody>
       </table>
+      <?php if (!empty($retention_pager)) echo $retention_pager; ?>
     </div>
 
     <div class="oa-card">

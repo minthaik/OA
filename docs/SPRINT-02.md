@@ -39,6 +39,7 @@ This sprint starts Phase 2 (analytics depth) by making cross-report filtering re
 - [x] Segment usage metadata (`usage_count`, `last_used`) and usage-ranked quick chips
 - [x] Funnel diagnostics panel (step drop-off + conversion trend delta)
 - [x] Retention report basics + tracker retention signals (`visitor_first_seen`, `visitor_returned`)
+- [x] Table pagination across report pages (dashboard tables, goals, funnels, retention, campaigns, coupons, revenue)
 
 ## Validation
 - PHP lint passed:

@@ -215,6 +215,48 @@ body[class*="ordelix-analytics_page_ordelix-analytics-"] #wpbody-content .error{
 .oa-card .widefat tbody tr:last-child td{border-bottom:0}
 .oa-card .widefat.striped > tbody > :nth-child(odd){background:#fbfdff}
 .oa-card .widefat.striped > tbody > :nth-child(even){background:#f7fbff}
+.oa-table-pager{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:10px;
+}
+.oa-table-pager__meta{
+  font-size:12px;
+  color:#4f5f79;
+}
+.oa-table-pager__links{
+  display:flex;
+  align-items:center;
+  gap:4px;
+}
+.oa-table-pager__links .page-numbers{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:30px;
+  min-height:30px;
+  padding:0 8px;
+  border-radius:9px;
+  border:1px solid #c6d8f2;
+  background:#fff;
+  color:#21466f;
+  text-decoration:none;
+  font-size:12px;
+}
+.oa-table-pager__links .page-numbers.current{
+  border-color:#1f6feb;
+  background:linear-gradient(145deg,#1f6feb,#2d8fff);
+  color:#fff;
+}
+.oa-table-pager__links .page-numbers.dots{
+  border:0;
+  background:transparent;
+  min-width:auto;
+  padding:0 3px;
+}
 
 .oa-page-anomalies .oa-flow > *{margin-top:0;margin-bottom:0}
 .oa-page-anomalies .oa-flow > * + *{margin-top:12px}
@@ -831,4 +873,9 @@ body[class*="ordelix-analytics_page_ordelix-analytics-"] #wpbody-content .error{
   .oa-chart-card #oa-trend{height:220px}
   .oa-mini-bars li{grid-template-columns:1fr}
   .oa-mini-bars__value{text-align:left}
+  .oa-table-pager{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+  .oa-table-pager__links{width:100%;flex-wrap:wrap}
 }

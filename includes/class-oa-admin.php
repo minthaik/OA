@@ -86,6 +86,52 @@ class OA_Admin {
     $out['optout_cookie']=$optout_cookie ?: 'oa_optout';
     return $out;
   }
+  private static function table_page($key,$default=1){
+    $param='oa_pg_'.sanitize_key((string)$key);
+    if (!isset($_GET[$param]) || is_array($_GET[$param])) return max(1,intval($default));
+    return max(1,intval($_GET[$param]));
+  }
+  private static function table_pager_html($key,$paged,$label='rows'){
+    $paged=is_array($paged) ? $paged : [];
+    $total=max(0,intval($paged['total'] ?? 0));
+    $page=max(1,intval($paged['page'] ?? 1));
+    $per=max(1,intval($paged['per_page'] ?? 1));
+    $total_pages=max(1,intval($paged['total_pages'] ?? 1));
+    $from_i=$total>0 ? ((($page-1)*$per)+1) : 0;
+    $to_i=$total>0 ? min($total,$page*$per) : 0;
+    $meta=$total>0
+      ? ('Showing '.number_format_i18n($from_i).'-'.number_format_i18n($to_i).' of '.number_format_i18n($total).' '.$label)
+      : ('No '.$label.' in this range');
+    if ($total_pages<=1){
+      return '<div class="oa-table-pager"><span class="oa-table-pager__meta">'.esc_html($meta).'</span></div>';
+    }
+    $param='oa_pg_'.sanitize_key((string)$key);
+    $args=[];
+    foreach($_GET as $k=>$v){
+      if (is_array($v)) continue;
+      if ($k===$param) continue;
+      if (!preg_match('/^[A-Za-z0-9_-]+$/',(string)$k)) continue;
+      $args[$k]=sanitize_text_field(wp_unslash((string)$v));
+    }
+    $base=add_query_arg($param,'%#%',admin_url('admin.php'));
+    $links=paginate_links([
+      'base'=>$base,
+      'format'=>'',
+      'current'=>$page,
+      'total'=>$total_pages,
+      'type'=>'array',
+      'prev_text'=>'&laquo;',
+      'next_text'=>'&raquo;',
+      'add_args'=>$args,
+    ]);
+    if (empty($links)){
+      return '<div class="oa-table-pager"><span class="oa-table-pager__meta">'.esc_html($meta).'</span></div>';
+    }
+    $html='<div class="oa-table-pager"><span class="oa-table-pager__meta">'.esc_html($meta).'</span><nav class="oa-table-pager__links" aria-label="Pagination">';
+    foreach($links as $link) $html.=$link;
+    $html.='</nav></div>';
+    return $html;
+  }
   private static function range_inputs(){
     $now=current_time('timestamp');
     $default_to=wp_date('Y-m-d',$now);
@@ -107,6 +153,7 @@ class OA_Admin {
     echo '<div class="oa-range"><form method="get" class="oa-range-form oa-range-primary">';
     foreach($_GET as $k=>$v){
       if($k==='from'||$k==='to'||$k==='oa_range') continue;
+      if(strpos($k,'oa_pg_')===0 || strpos($k,'oa_pp_')===0) continue;
       if(is_array($v)) continue;
       echo '<input type="hidden" name="'.esc_attr($k).'" value="'.esc_attr($v).'">';
     }
@@ -616,6 +663,23 @@ class OA_Admin {
     list($from,$to,$range_html)=self::range_inputs();
     list($filters,$filters_html)=self::filter_inputs('traffic');
     $data=OA_Reports::dashboard($from,$to,$filters);
+    $pages_table=OA_Reports::dashboard_pages_paged($from,$to,$filters,self::table_page('dash_pages'),10);
+    $referrers_table=OA_Reports::dashboard_referrers_paged($from,$to,self::table_page('dash_referrers'),10);
+    $events_table=OA_Reports::dashboard_events_paged($from,$to,$filters,self::table_page('dash_events'),10);
+    $goals_table=OA_Reports::dashboard_goals_paged($from,$to,$filters,self::table_page('dash_goals'),10);
+    $funnels_table=OA_Reports::dashboard_funnels_paged($from,$to,$filters,self::table_page('dash_funnels'),5);
+    $data['tables']['pages']=$pages_table['rows'];
+    $data['tables']['referrers']=$referrers_table['rows'];
+    $data['tables']['events']=$events_table['rows'];
+    $data['tables']['goals']=$goals_table['rows'];
+    $data['funnels']=$funnels_table['rows'];
+    $table_pagers=[
+      'pages'=>self::table_pager_html('dash_pages',$pages_table,'pages'),
+      'referrers'=>self::table_pager_html('dash_referrers',$referrers_table,'referrers'),
+      'events'=>self::table_pager_html('dash_events',$events_table,'events'),
+      'goals'=>self::table_pager_html('dash_goals',$goals_table,'goals'),
+      'funnels'=>self::table_pager_html('dash_funnels',$funnels_table,'funnels'),
+    ];
     include OA_PLUGIN_DIR.'includes/views/dashboard.php';
   }
   public static function page_anomalies(){
@@ -631,7 +695,9 @@ class OA_Admin {
     OA_Reports::handle_goals_post();
     list($from,$to,$range_html)=self::range_inputs();
     list($filters,$filters_html)=self::filter_inputs('goals');
-    $stats=OA_Reports::goals_stats($from,$to,$filters);
+    $stats_table=OA_Reports::goals_stats_paged($from,$to,$filters,self::table_page('goals'),15);
+    $stats=$stats_table['rows'];
+    $stats_pager=self::table_pager_html('goals',$stats_table,'goals');
     include OA_PLUGIN_DIR.'includes/views/goals.php';
   }
   public static function page_funnels(){
@@ -640,16 +706,19 @@ class OA_Admin {
     OA_Reports::handle_funnels_post();
     list($from,$to,$range_html)=self::range_inputs();
     list($filters,$filters_html)=self::filter_inputs('funnels');
-    $funnels=OA_Reports::get_funnels_with_steps($filters);
-    $stats=OA_Reports::funnels_stats($from,$to,50,$filters);
-    $diagnostics=OA_Reports::funnels_diagnostics($from,$to,$filters,50);
+    $funnels_table=OA_Reports::get_funnels_with_steps_paged($filters,self::table_page('funnels'),10,false);
+    $funnels=$funnels_table['rows'];
+    $stats=OA_Reports::funnels_stats_for_rows($from,$to,$funnels);
+    $diagnostics=OA_Reports::funnels_diagnostics_for_rows($from,$to,$funnels);
+    $funnels_pager=self::table_pager_html('funnels',$funnels_table,'funnels');
     include OA_PLUGIN_DIR.'includes/views/funnels.php';
   }
   public static function page_retention(){
     if(!self::can_view()) wp_die('Nope');
     $can_manage=self::can_manage();
     list($from,$to,$range_html)=self::range_inputs();
-    $retention=OA_Reports::retention_stats($from,$to);
+    $retention=OA_Reports::retention_stats_paged($from,$to,self::table_page('retention'),14);
+    $retention_pager=self::table_pager_html('retention',$retention['trend_paged'] ?? [],'days');
     include OA_PLUGIN_DIR.'includes/views/retention.php';
   }
   public static function page_campaigns(){
@@ -660,7 +729,9 @@ class OA_Admin {
     $opt=get_option('oa_settings',[]);
     $attribution_mode=sanitize_key((string)($opt['attribution_mode'] ?? 'first_touch'));
     if (!in_array($attribution_mode,['first_touch','last_touch'],true)) $attribution_mode='first_touch';
-    $rows=OA_Reports::campaigns($from,$to,$filters);
+    $campaigns_table=OA_Reports::campaigns_paged($from,$to,$filters,self::table_page('campaigns'),20);
+    $rows=$campaigns_table['rows'];
+    $rows_pager=self::table_pager_html('campaigns',$campaigns_table,'campaigns');
     include OA_PLUGIN_DIR.'includes/views/campaigns.php';
   }
   public static function page_coupons(){
@@ -668,7 +739,9 @@ class OA_Admin {
     $can_manage=self::can_manage();
     list($from,$to,$range_html)=self::range_inputs();
     list($filters,$filters_html)=self::filter_inputs('coupons');
-    $rows=OA_Reports::coupons($from,$to,$filters);
+    $coupons_table=OA_Reports::coupons_paged($from,$to,$filters,self::table_page('coupons'),20);
+    $rows=$coupons_table['rows'];
+    $rows_pager=self::table_pager_html('coupons',$coupons_table,'coupons');
     $daily=OA_Reports::coupons_daily($from,$to,$filters);
     include OA_PLUGIN_DIR.'includes/views/coupons.php';
   }
@@ -677,7 +750,9 @@ class OA_Admin {
     $can_manage=self::can_manage();
     list($from,$to,$range_html)=self::range_inputs();
     list($filters,$filters_html)=self::filter_inputs('revenue');
-    $rows=OA_Reports::revenue($from,$to,$filters);
+    $revenue_table=OA_Reports::revenue_paged($from,$to,$filters,self::table_page('revenue'),20);
+    $rows=$revenue_table['rows'];
+    $rows_pager=self::table_pager_html('revenue',$revenue_table,'days');
     include OA_PLUGIN_DIR.'includes/views/revenue.php';
   }
   public static function page_health(){

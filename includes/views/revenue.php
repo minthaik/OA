@@ -75,5 +75,6 @@ $coupons_url=add_query_arg($coupons_url_args,admin_url('admin.php'));
       <?php endforeach; endif; ?>
       </tbody>
     </table>
+    <?php if (!empty($rows_pager)) echo $rows_pager; ?>
   </div>
 </div>

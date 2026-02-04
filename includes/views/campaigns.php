@@ -33,6 +33,7 @@
       <?php endforeach; endif; ?>
       </tbody>
     </table>
+    <?php if (!empty($rows_pager)) echo $rows_pager; ?>
     <p class="description">Campaigns appear when UTM parameters exist. Conversions/value require goals. Export includes attribution mode metadata.</p>
   </div>
 </div>

@@ -164,6 +164,28 @@ class OA_Reports {
     if (empty($parts)) return '';
     return ' AND ('.implode(' OR ',$parts).')';
   }
+  private static function page_bounds($page,$per_page){
+    $per=max(1,intval($per_page));
+    $pg=max(1,intval($page));
+    return ['page'=>$pg,'per_page'=>$per,'offset'=>(($pg-1)*$per)];
+  }
+  private static function total_pages($total,$per_page){
+    $per=max(1,intval($per_page));
+    $n=max(0,intval($total));
+    return max(1,intval(ceil($n/$per)));
+  }
+  private static function paged_payload($rows,$total,$bounds){
+    $total=max(0,intval($total));
+    $page=max(1,intval($bounds['page'] ?? 1));
+    $per=max(1,intval($bounds['per_page'] ?? 1));
+    return [
+      'rows'=>array_values((array)$rows),
+      'total'=>$total,
+      'page'=>$page,
+      'per_page'=>$per,
+      'total_pages'=>self::total_pages($total,$per),
+    ];
+  }
 
   private static function aggregate_metrics($from,$to,$filters=[]){
     $filters=self::normalize_filters($filters);
@@ -1140,6 +1162,108 @@ class OA_Reports {
     return $res;
   }
 
+  public static function dashboard_pages_paged($from,$to,$filters=[],$page=1,$per_page=10){
+    $filters=self::normalize_filters($filters);
+    $bounds=self::page_bounds($page,$per_page);
+    global $wpdb; $pfx=$wpdb->prefix.'oa_';
+    $params=[$from,$to];
+    $where=self::page_filter_sql($filters,$params,'path','device_class');
+    $count_sql="SELECT COUNT(*) FROM (SELECT path FROM {$pfx}daily_pages WHERE day BETWEEN %s AND %s{$where} GROUP BY path) t";
+    $total=(int)$wpdb->get_var($wpdb->prepare($count_sql,$params));
+    $row_params=$params;
+    $row_params[]=$bounds['per_page'];
+    $row_params[]=$bounds['offset'];
+    $rows=$wpdb->get_results($wpdb->prepare(
+      "SELECT path, SUM(count) as views
+       FROM {$pfx}daily_pages
+       WHERE day BETWEEN %s AND %s{$where}
+       GROUP BY path
+       ORDER BY views DESC
+       LIMIT %d OFFSET %d",
+      $row_params
+    ), ARRAY_A);
+    return self::paged_payload($rows,$total,$bounds);
+  }
+
+  public static function dashboard_referrers_paged($from,$to,$page=1,$per_page=10){
+    $bounds=self::page_bounds($page,$per_page);
+    global $wpdb; $pfx=$wpdb->prefix.'oa_';
+    $total=(int)$wpdb->get_var($wpdb->prepare(
+      "SELECT COUNT(*) FROM (SELECT ref_domain FROM {$pfx}daily_referrers WHERE day BETWEEN %s AND %s GROUP BY ref_domain) t",
+      $from,$to
+    ));
+    $rows=$wpdb->get_results($wpdb->prepare(
+      "SELECT ref_domain, SUM(count) as views
+       FROM {$pfx}daily_referrers
+       WHERE day BETWEEN %s AND %s
+       GROUP BY ref_domain
+       ORDER BY views DESC
+       LIMIT %d OFFSET %d",
+      $from,$to,$bounds['per_page'],$bounds['offset']
+    ), ARRAY_A);
+    return self::paged_payload($rows,$total,$bounds);
+  }
+
+  public static function dashboard_events_paged($from,$to,$filters=[],$page=1,$per_page=10){
+    $filters=self::normalize_filters($filters);
+    $bounds=self::page_bounds($page,$per_page);
+    global $wpdb; $pfx=$wpdb->prefix.'oa_';
+    $params=[$from,$to];
+    $where=self::event_filter_sql($filters,$params,'event_name');
+    $count_sql="SELECT COUNT(*) FROM (SELECT event_name FROM {$pfx}daily_events WHERE day BETWEEN %s AND %s{$where} GROUP BY event_name) t";
+    $total=(int)$wpdb->get_var($wpdb->prepare($count_sql,$params));
+    $row_params=$params;
+    $row_params[]=$bounds['per_page'];
+    $row_params[]=$bounds['offset'];
+    $rows=$wpdb->get_results($wpdb->prepare(
+      "SELECT event_name, SUM(count) as hits
+       FROM {$pfx}daily_events
+       WHERE day BETWEEN %s AND %s{$where}
+       GROUP BY event_name
+       ORDER BY hits DESC
+       LIMIT %d OFFSET %d",
+      $row_params
+    ), ARRAY_A);
+    return self::paged_payload($rows,$total,$bounds);
+  }
+
+  public static function dashboard_goals_paged($from,$to,$filters=[],$page=1,$per_page=10){
+    $filters=self::normalize_filters($filters);
+    $bounds=self::page_bounds($page,$per_page);
+    global $wpdb; $pfx=$wpdb->prefix.'oa_';
+    $params=[$from,$to];
+    $where=self::goals_filter_join_where($filters,$params,'g','dg');
+    $count_sql="SELECT COUNT(*) FROM (
+      SELECT dg.goal_id
+      FROM {$pfx}daily_goals dg
+      JOIN {$pfx}goals g ON g.id=dg.goal_id
+      WHERE dg.day BETWEEN %s AND %s{$where}
+      GROUP BY dg.goal_id
+    ) t";
+    $total=(int)$wpdb->get_var($wpdb->prepare($count_sql,$params));
+    $row_params=$params;
+    $row_params[]=$bounds['per_page'];
+    $row_params[]=$bounds['offset'];
+    $rows=$wpdb->get_results($wpdb->prepare(
+      "SELECT g.name, SUM(dg.hits) as hits, SUM(dg.value_sum) as value
+       FROM {$pfx}daily_goals dg
+       JOIN {$pfx}goals g ON g.id=dg.goal_id
+       WHERE dg.day BETWEEN %s AND %s{$where}
+       GROUP BY dg.goal_id
+       ORDER BY hits DESC
+       LIMIT %d OFFSET %d",
+      $row_params
+    ), ARRAY_A);
+    return self::paged_payload($rows,$total,$bounds);
+  }
+
+  public static function dashboard_funnels_paged($from,$to,$filters=[],$page=1,$per_page=5){
+    $paged=self::get_funnels_with_steps_paged($filters,$page,$per_page,true);
+    $rows=self::funnels_stats_from_funnels($from,$to,$paged['rows']);
+    $paged['rows']=$rows;
+    return $paged;
+  }
+
   public static function get_goals(){ global $wpdb; $pfx=$wpdb->prefix.'oa_'; return $wpdb->get_results("SELECT * FROM {$pfx}goals ORDER BY created_at DESC", ARRAY_A); }
 
   public static function goals_stats($from,$to,$filters=[]){
@@ -1155,6 +1279,30 @@ class OA_Reports {
        GROUP BY g.id
        ORDER BY hits DESC",$params
     ), ARRAY_A);
+  }
+
+  public static function goals_stats_paged($from,$to,$filters=[],$page=1,$per_page=15){
+    $filters=self::normalize_filters($filters);
+    $bounds=self::page_bounds($page,$per_page);
+    global $wpdb; $pfx=$wpdb->prefix.'oa_';
+    $params=[$from,$to];
+    $goal_where=self::goals_filter_join_where($filters,$params,'g','dg');
+    $count_sql="SELECT COUNT(*) FROM {$pfx}goals g WHERE 1=1{$goal_where}";
+    $total=(int)$wpdb->get_var($wpdb->prepare($count_sql,$params));
+    $row_params=$params;
+    $row_params[]=$bounds['per_page'];
+    $row_params[]=$bounds['offset'];
+    $rows=$wpdb->get_results($wpdb->prepare(
+      "SELECT g.*, COALESCE(SUM(dg.hits),0) as hits, COALESCE(SUM(dg.value_sum),0) as value_sum
+       FROM {$pfx}goals g
+       LEFT JOIN {$pfx}daily_goals dg ON dg.goal_id=g.id AND dg.day BETWEEN %s AND %s
+       WHERE 1=1{$goal_where}
+       GROUP BY g.id
+       ORDER BY hits DESC
+       LIMIT %d OFFSET %d",
+      $row_params
+    ), ARRAY_A);
+    return self::paged_payload($rows,$total,$bounds);
   }
 
   public static function handle_goals_post(){
@@ -1182,61 +1330,119 @@ class OA_Reports {
     }
   }
 
+  private static function funnel_filters_sql($filters,&$params,$funnel_alias='f'){
+    global $wpdb; $pfx=$wpdb->prefix.'oa_';
+    $parts=[];
+    if (!empty($filters['path'])){ $parts[]="(fs.step_type='page' AND fs.step_value LIKE %s)"; $params[]='%'.$filters['path'].'%'; }
+    if (!empty($filters['event'])){ $parts[]="(fs.step_type='event' AND fs.step_value LIKE %s)"; $params[]='%'.$filters['event'].'%'; }
+    if (empty($parts)) return '';
+    return " AND EXISTS (SELECT 1 FROM {$pfx}funnel_steps fs WHERE fs.funnel_id={$funnel_alias}.id AND (".implode(' OR ',$parts)."))";
+  }
+
+  private static function attach_funnel_steps($funnels){
+    $funnels=array_values((array)$funnels);
+    if (empty($funnels)) return [];
+    global $wpdb; $pfx=$wpdb->prefix.'oa_';
+    $ids=[];
+    foreach((array)$funnels as $f){
+      $fid=intval($f['id'] ?? 0);
+      if ($fid>0) $ids[]=$fid;
+    }
+    if (empty($ids)){
+      foreach($funnels as &$f) $f['steps']=[];
+      unset($f);
+      return $funnels;
+    }
+    $ids=array_values(array_unique($ids));
+    $placeholders=implode(',',array_fill(0,count($ids),'%d'));
+    $step_sql="SELECT * FROM {$pfx}funnel_steps WHERE funnel_id IN ({$placeholders}) ORDER BY funnel_id ASC, step_num ASC";
+    $step_rows=$wpdb->get_results($wpdb->prepare($step_sql,$ids), ARRAY_A);
+    $step_map=[];
+    foreach((array)$step_rows as $row){
+      $fid=intval($row['funnel_id'] ?? 0);
+      if ($fid<=0) continue;
+      if (!isset($step_map[$fid])) $step_map[$fid]=[];
+      $step_map[$fid][]=$row;
+    }
+    foreach($funnels as &$f){
+      $fid=intval($f['id'] ?? 0);
+      $f['steps']=$step_map[$fid] ?? [];
+    }
+    unset($f);
+    return $funnels;
+  }
+
   public static function get_funnels_with_steps($filters=[]){
     $filters=self::normalize_filters($filters);
     global $wpdb; $pfx=$wpdb->prefix.'oa_';
     $params=[];
-    $where='';
-    $parts=[];
-    if (!empty($filters['path'])){ $parts[]="(fs.step_type='page' AND fs.step_value LIKE %s)"; $params[]='%'.$filters['path'].'%'; }
-    if (!empty($filters['event'])){ $parts[]="(fs.step_type='event' AND fs.step_value LIKE %s)"; $params[]='%'.$filters['event'].'%'; }
-    if (!empty($parts)){
-      $where=" WHERE EXISTS (SELECT 1 FROM {$pfx}funnel_steps fs WHERE fs.funnel_id=f.id AND (".implode(' OR ',$parts)."))";
-    }
-    $sql="SELECT f.* FROM {$pfx}funnels f{$where} ORDER BY f.created_at DESC";
+    $where=self::funnel_filters_sql($filters,$params,'f');
+    $sql="SELECT f.* FROM {$pfx}funnels f WHERE 1=1{$where} ORDER BY f.created_at DESC";
     $funnels=empty($params) ? $wpdb->get_results($sql, ARRAY_A) : $wpdb->get_results($wpdb->prepare($sql,$params), ARRAY_A);
-    foreach($funnels as &$f){
-      $f['steps']=$wpdb->get_results($wpdb->prepare("SELECT * FROM {$pfx}funnel_steps WHERE funnel_id=%d ORDER BY step_num ASC",$f['id']), ARRAY_A);
-    }
-    return $funnels;
+    return self::attach_funnel_steps($funnels);
   }
 
-  public static function funnels_stats($from,$to,$limit=10,$filters=[]){
+  public static function get_funnels_with_steps_paged($filters=[],$page=1,$per_page=12,$enabled_only=false){
     $filters=self::normalize_filters($filters);
+    $bounds=self::page_bounds($page,$per_page);
     global $wpdb; $pfx=$wpdb->prefix.'oa_';
     $params=[];
-    $where=' WHERE is_enabled=1';
-    $parts=[];
-    if (!empty($filters['path'])){ $parts[]="(fs.step_type='page' AND fs.step_value LIKE %s)"; $params[]='%'.$filters['path'].'%'; }
-    if (!empty($filters['event'])){ $parts[]="(fs.step_type='event' AND fs.step_value LIKE %s)"; $params[]='%'.$filters['event'].'%'; }
-    if (!empty($parts)){
-      $where.=" AND EXISTS (SELECT 1 FROM {$pfx}funnel_steps fs WHERE fs.funnel_id={$pfx}funnels.id AND (".implode(' OR ',$parts)."))";
-    }
-    $params[]=intval($limit);
-    $sql="SELECT id,name FROM {$pfx}funnels{$where} ORDER BY created_at DESC LIMIT %d";
-    $funnels=$wpdb->get_results($wpdb->prepare($sql,$params), ARRAY_A);
+    $where='';
+    if ($enabled_only) $where.=' AND f.is_enabled=1';
+    $where.=self::funnel_filters_sql($filters,$params,'f');
+
+    $count_sql="SELECT COUNT(*) FROM {$pfx}funnels f WHERE 1=1{$where}";
+    $total=(int)(empty($params) ? $wpdb->get_var($count_sql) : $wpdb->get_var($wpdb->prepare($count_sql,$params)));
+
+    $row_params=$params;
+    $row_params[]=$bounds['per_page'];
+    $row_params[]=$bounds['offset'];
+    $row_sql="SELECT f.* FROM {$pfx}funnels f WHERE 1=1{$where} ORDER BY f.created_at DESC LIMIT %d OFFSET %d";
+    $rows=$wpdb->get_results($wpdb->prepare($row_sql,$row_params), ARRAY_A);
+    $rows=self::attach_funnel_steps($rows);
+    return self::paged_payload($rows,$total,$bounds);
+  }
+
+  private static function funnels_stats_from_funnels($from,$to,$funnels){
+    global $wpdb; $pfx=$wpdb->prefix.'oa_';
     $out=[];
-    foreach($funnels as $f){
-      $fid=(int)$f['id'];
-      $steps=$wpdb->get_results($wpdb->prepare("SELECT step_num FROM {$pfx}funnel_steps WHERE funnel_id=%d ORDER BY step_num ASC",$fid), ARRAY_A);
-      if (count($steps)<2) continue;
-      $first=(int)$steps[0]['step_num']; $last=(int)$steps[count($steps)-1]['step_num'];
+    foreach((array)$funnels as $f){
+      $fid=intval($f['id'] ?? 0);
+      $name=sanitize_text_field((string)($f['name'] ?? ''));
+      $steps=(array)($f['steps'] ?? []);
+      if ($fid<=0 || count($steps)<2) continue;
+      $step_nums=[];
+      foreach($steps as $step){
+        $sn=intval($step['step_num'] ?? 0);
+        if ($sn>0) $step_nums[]=$sn;
+      }
+      if (count($step_nums)<2) continue;
+      sort($step_nums);
+      $first=intval($step_nums[0]);
+      $last=intval($step_nums[count($step_nums)-1]);
       $s1=(int)$wpdb->get_var($wpdb->prepare("SELECT COALESCE(SUM(hits),0) FROM {$pfx}daily_funnels WHERE funnel_id=%d AND step_num=%d AND day BETWEEN %s AND %s",$fid,$first,$from,$to));
       $sl=(int)$wpdb->get_var($wpdb->prepare("SELECT COALESCE(SUM(hits),0) FROM {$pfx}daily_funnels WHERE funnel_id=%d AND step_num=%d AND day BETWEEN %s AND %s",$fid,$last,$from,$to));
       $conv=($s1>0)?round(($sl/$s1)*100,1):0.0;
-      $out[]=['id'=>$fid,'name'=>$f['name'],'step1'=>$s1,'step_last'=>$sl,'conversion'=>$conv];
+      $out[]=['id'=>$fid,'name'=>$name,'step1'=>$s1,'step_last'=>$sl,'conversion'=>$conv];
     }
     return $out;
   }
-  public static function funnels_diagnostics($from,$to,$filters=[],$limit=10){
-    $filters=self::normalize_filters($filters);
+
+  public static function funnels_stats_for_rows($from,$to,$funnels){
+    return self::funnels_stats_from_funnels($from,$to,$funnels);
+  }
+
+  public static function funnels_stats($from,$to,$limit=10,$filters=[]){
     $limit=max(1,intval($limit));
+    $paged=self::get_funnels_with_steps_paged($filters,1,$limit,true);
+    return self::funnels_stats_from_funnels($from,$to,$paged['rows']);
+  }
+
+  private static function funnels_diagnostics_from_funnels($from,$to,$funnels){
     global $wpdb; $pfx=$wpdb->prefix.'oa_';
     $bounds=self::period_bounds($from,$to);
-    $funnels=self::get_funnels_with_steps($filters);
-    if (!empty($funnels) && count($funnels)>$limit) $funnels=array_slice($funnels,0,$limit);
     $out=[];
-    foreach($funnels as $f){
+    foreach((array)$funnels as $f){
       $fid=intval($f['id'] ?? 0);
       $steps=(array)($f['steps'] ?? []);
       if ($fid<=0 || count($steps)<2) continue;
@@ -1340,6 +1546,17 @@ class OA_Reports {
     return $out;
   }
 
+  public static function funnels_diagnostics_for_rows($from,$to,$funnels){
+    return self::funnels_diagnostics_from_funnels($from,$to,$funnels);
+  }
+
+  public static function funnels_diagnostics($from,$to,$filters=[],$limit=10){
+    $filters=self::normalize_filters($filters);
+    $limit=max(1,intval($limit));
+    $paged=self::get_funnels_with_steps_paged($filters,1,$limit,false);
+    return self::funnels_diagnostics_from_funnels($from,$to,$paged['rows']);
+  }
+
   private static function parse_gap_days($meta){
     $meta=(string)$meta;
     if (preg_match('/gap_days\s*=\s*(\d+)/i',$meta,$m)) return max(1,intval($m[1]));
@@ -1415,6 +1632,16 @@ class OA_Reports {
     ];
   }
 
+  public static function retention_stats_paged($from,$to,$page=1,$per_page=15){
+    $stats=self::retention_stats($from,$to);
+    $bounds=self::page_bounds($page,$per_page);
+    $trend=array_values((array)($stats['trend'] ?? []));
+    $total=count($trend);
+    $rows=array_slice($trend,$bounds['offset'],$bounds['per_page']);
+    $stats['trend_paged']=self::paged_payload($rows,$total,$bounds);
+    return $stats;
+  }
+
   public static function handle_funnels_post(){
     if (empty($_POST['oa_action'])) return;
     if (!current_user_can('ordelix_analytics_manage')) return;
@@ -1459,6 +1686,34 @@ class OA_Reports {
     ), ARRAY_A);
   }
 
+  public static function campaigns_paged($from,$to,$filters=[],$page=1,$per_page=20){
+    $filters=self::normalize_filters($filters);
+    $bounds=self::page_bounds($page,$per_page);
+    global $wpdb; $pfx=$wpdb->prefix.'oa_';
+    $params=[$from,$to];
+    $where=self::campaign_filter_sql($filters,$params,'source','medium','campaign','landing_path');
+    $count_sql="SELECT COUNT(*) FROM (
+      SELECT source,medium,campaign
+      FROM {$pfx}daily_campaigns
+      WHERE day BETWEEN %s AND %s{$where}
+      GROUP BY source,medium,campaign
+    ) t";
+    $total=(int)$wpdb->get_var($wpdb->prepare($count_sql,$params));
+    $row_params=$params;
+    $row_params[]=$bounds['per_page'];
+    $row_params[]=$bounds['offset'];
+    $rows=$wpdb->get_results($wpdb->prepare(
+      "SELECT source,medium,campaign,SUM(views) as views,SUM(conversions) as conversions,SUM(value_sum) as value
+       FROM {$pfx}daily_campaigns
+       WHERE day BETWEEN %s AND %s{$where}
+       GROUP BY source,medium,campaign
+       ORDER BY conversions DESC, views DESC
+       LIMIT %d OFFSET %d",
+      $row_params
+    ), ARRAY_A);
+    return self::paged_payload($rows,$total,$bounds);
+  }
+
   public static function coupons($from,$to,$filters=[]){
     $filters=self::normalize_filters($filters);
     global $wpdb; $pfx=$wpdb->prefix.'oa_';
@@ -1471,6 +1726,34 @@ class OA_Reports {
        ORDER BY discount_total DESC, orders DESC LIMIT 150",
       $params
     ), ARRAY_A);
+  }
+
+  public static function coupons_paged($from,$to,$filters=[],$page=1,$per_page=20){
+    $filters=self::normalize_filters($filters);
+    $bounds=self::page_bounds($page,$per_page);
+    global $wpdb; $pfx=$wpdb->prefix.'oa_';
+    $params=[$from,$to];
+    $where=self::coupon_filter_sql($filters,$params,'coupon_code');
+    $count_sql="SELECT COUNT(*) FROM (
+      SELECT coupon_code
+      FROM {$pfx}daily_coupons
+      WHERE day BETWEEN %s AND %s{$where}
+      GROUP BY coupon_code
+    ) t";
+    $total=(int)$wpdb->get_var($wpdb->prepare($count_sql,$params));
+    $row_params=$params;
+    $row_params[]=$bounds['per_page'];
+    $row_params[]=$bounds['offset'];
+    $rows=$wpdb->get_results($wpdb->prepare(
+      "SELECT coupon_code, SUM(orders) as orders, SUM(discount_total) as discount_total, SUM(revenue_total) as revenue_total
+       FROM {$pfx}daily_coupons
+       WHERE day BETWEEN %s AND %s{$where}
+       GROUP BY coupon_code
+       ORDER BY discount_total DESC, orders DESC
+       LIMIT %d OFFSET %d",
+      $row_params
+    ), ARRAY_A);
+    return self::paged_payload($rows,$total,$bounds);
   }
 
   public static function coupons_daily($from,$to,$filters=[]){
@@ -1504,5 +1787,48 @@ class OA_Reports {
       ), ARRAY_A);
     }
     return $wpdb->get_results($wpdb->prepare("SELECT day,orders,revenue FROM {$pfx}daily_revenue WHERE day BETWEEN %s AND %s ORDER BY day DESC",$from,$to), ARRAY_A);
+  }
+
+  public static function revenue_paged($from,$to,$filters=[],$page=1,$per_page=20){
+    $filters=self::normalize_filters($filters);
+    $bounds=self::page_bounds($page,$per_page);
+    global $wpdb; $pfx=$wpdb->prefix.'oa_';
+    if (!empty($filters['coupon'])){
+      $params=[$from,$to];
+      $where=self::coupon_filter_sql($filters,$params,'coupon_code');
+      $count_sql="SELECT COUNT(*) FROM (
+        SELECT day
+        FROM {$pfx}daily_coupons
+        WHERE day BETWEEN %s AND %s{$where}
+        GROUP BY day
+      ) t";
+      $total=(int)$wpdb->get_var($wpdb->prepare($count_sql,$params));
+      $row_params=$params;
+      $row_params[]=$bounds['per_page'];
+      $row_params[]=$bounds['offset'];
+      $rows=$wpdb->get_results($wpdb->prepare(
+        "SELECT day, SUM(orders) as orders, SUM(revenue_total) as revenue
+         FROM {$pfx}daily_coupons
+         WHERE day BETWEEN %s AND %s{$where}
+         GROUP BY day
+         ORDER BY day DESC
+         LIMIT %d OFFSET %d",
+        $row_params
+      ), ARRAY_A);
+      return self::paged_payload($rows,$total,$bounds);
+    }
+    $total=(int)$wpdb->get_var($wpdb->prepare(
+      "SELECT COUNT(*) FROM {$pfx}daily_revenue WHERE day BETWEEN %s AND %s",
+      $from,$to
+    ));
+    $rows=$wpdb->get_results($wpdb->prepare(
+      "SELECT day,orders,revenue
+       FROM {$pfx}daily_revenue
+       WHERE day BETWEEN %s AND %s
+       ORDER BY day DESC
+       LIMIT %d OFFSET %d",
+      $from,$to,$bounds['per_page'],$bounds['offset']
+    ), ARRAY_A);
+    return self::paged_payload($rows,$total,$bounds);
   }
 }
