@@ -143,6 +143,35 @@ $storage_total_mb=round((float)($health['storage_total_bytes'] ?? 0)/(1024*1024)
     </table>
   </div>
 
+  <div class="oa-card">
+    <div class="oa-card-h">Data quality audit</div>
+    <?php $dq=(array)($health['data_quality_audit'] ?? []); ?>
+    <?php $dq_findings=(array)($dq['findings'] ?? []); ?>
+    <?php $dq_range=(array)($dq['range'] ?? []); ?>
+    <p class="oa-muted">Range: <?php echo esc_html((string)($dq_range['from'] ?? '-')); ?> -> <?php echo esc_html((string)($dq_range['to'] ?? '-')); ?></p>
+    <table class="widefat striped">
+      <thead><tr><th>Finding</th><th>Status</th><th>Detail</th></tr></thead>
+      <tbody>
+      <?php if (empty($dq_findings)): ?>
+        <tr><td colspan="3">No data-quality findings available.</td></tr>
+      <?php else: foreach($dq_findings as $f): ?>
+        <?php
+          $status=(string)($f['status'] ?? 'ok');
+          $cls='oa-badge-ok';
+          $label='OK';
+          if ($status==='warn'){ $cls='oa-badge-muted'; $label='Warning'; }
+          elseif ($status==='fail'){ $cls='oa-badge-alert'; $label='Fail'; }
+        ?>
+        <tr>
+          <td><?php echo esc_html((string)($f['label'] ?? '-')); ?></td>
+          <td><span class="oa-badge <?php echo esc_attr($cls); ?>"><?php echo esc_html($label); ?></span></td>
+          <td><?php echo esc_html((string)($f['detail'] ?? '')); ?></td>
+        </tr>
+      <?php endforeach; endif; ?>
+      </tbody>
+    </table>
+  </div>
+
   <?php if (!empty($health_self_test)): ?>
   <div class="oa-card">
     <div class="oa-card-h">Self-test results</div>

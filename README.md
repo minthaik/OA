@@ -22,6 +22,7 @@ Privacy-first, lightweight, local-first analytics for WordPress.
 - Automated anomaly alerts + insight summaries
 - Anomaly drilldown view with baseline math, top movers, and explainable SQL checks
 - System Health page (schema checks, cron status, cache/cleanup actions, migration history)
+- Data quality audit utilities (future rows, key duplicates, ingestion freshness, metric sanity)
 - Diagnostics export (JSON) + health/diagnostics REST endpoints
 - WP-CLI maintenance commands (`wp ordelix ...`) for health and repair workflows
 - Compliance tools (date-range export + erase helpers)
@@ -41,12 +42,15 @@ window.ordelixTrack('quote_submit', {meta:'form=quote', value: 0});
 
 ## Roadmap
 - Product roadmap and phased execution plan: `docs/ROADMAP.md`
-- Active sprint logs: `docs/SPRINT-01.md`, `docs/SPRINT-02.md`
+- Active sprint logs: `docs/SPRINT-01.md`, `docs/SPRINT-02.md`, `docs/SPRINT-03.md`
+- Release checklist: `docs/RELEASE-CHECKLIST.md`
+- Troubleshooting guide: `docs/TROUBLESHOOTING.md`
 
 ## Operations (WP-CLI)
 - Health checks: `wp ordelix health`
+- Data quality audit: `wp ordelix data-quality --from=YYYY-MM-DD --to=YYYY-MM-DD --format=table`
 - Self-test suite: `wp ordelix self-test --format=table` (use `--strict` to fail on warnings)
-- Phase 1 regression smoke: `wp ordelix regression-smoke --from=YYYY-MM-DD --to=YYYY-MM-DD --format=table` (add `--strict` to fail on warnings)
+- Phase 1 regression smoke: `wp ordelix regression-smoke --from=YYYY-MM-DD --to=YYYY-MM-DD --format=table` (includes report, pagination, and ingestion checks; add `--strict` to fail on warnings)
 - Diagnostics payload: `wp ordelix diagnostics --format=json`
 - Maintenance:
   - `wp ordelix cleanup`

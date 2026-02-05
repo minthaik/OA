@@ -691,6 +691,141 @@ class OA_Reports {
     return $ctx;
   }
 
+  public static function data_quality_audit($from='',$to='',$limit=20){
+    global $wpdb; $pfx=$wpdb->prefix.'oa_';
+    $now=current_time('timestamp');
+    $to=sanitize_text_field((string)$to);
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/',$to) || !wp_checkdate(substr($to,5,2), substr($to,8,2), substr($to,0,4), $to)){
+      $to=wp_date('Y-m-d',$now);
+    }
+    $from=sanitize_text_field((string)$from);
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/',$from) || !wp_checkdate(substr($from,5,2), substr($from,8,2), substr($from,0,4), $from)){
+      $from=wp_date('Y-m-d',$now-(29*DAY_IN_SECONDS));
+    }
+    if (strtotime($from)>strtotime($to)){ $tmp=$from; $from=$to; $to=$tmp; }
+    $limit=max(5,min(100,intval($limit)));
+    $findings=[];
+    $fail=0; $warn=0;
+    $push=function($key,$label,$status,$detail) use (&$findings,&$fail,&$warn){
+      if ($status==='fail') $fail++;
+      elseif ($status==='warn') $warn++;
+      $findings[]=[
+        'key'=>sanitize_key((string)$key),
+        'label'=>sanitize_text_field((string)$label),
+        'status'=>in_array($status,['ok','warn','fail'],true) ? $status : 'ok',
+        'detail'=>sanitize_text_field((string)$detail),
+      ];
+    };
+
+    $today=wp_date('Y-m-d',$now);
+    $future_rows=0;
+    foreach(self::analytics_daily_tables() as $name){
+      $future_rows+=(int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$pfx}{$name} WHERE day > %s",$today));
+    }
+    $push(
+      'future_rows',
+      'Future-dated rows',
+      ($future_rows>0 ? 'warn' : 'ok'),
+      ($future_rows>0 ? ('Found '.number_format_i18n($future_rows).' row(s) with day > '.$today.'.') : 'No future-dated rows found.')
+    );
+
+    $latest_day=(string)$wpdb->get_var("SELECT MAX(day) FROM {$pfx}daily_pages");
+    if ($latest_day===''){
+      $push('freshness','Ingestion freshness','warn','No pageview data found yet.');
+    } else {
+      $lag_days=max(0,intval(floor((strtotime($today)-strtotime($latest_day))/DAY_IN_SECONDS)));
+      $status=$lag_days>=2 ? 'warn' : 'ok';
+      $detail='Latest pageview day '.$latest_day.' (lag '.$lag_days.' day(s)).';
+      $push('freshness','Ingestion freshness',$status,$detail);
+    }
+
+    $campaign_inconsistent=(int)$wpdb->get_var("SELECT COUNT(*) FROM {$pfx}daily_campaigns WHERE conversions > views");
+    $push(
+      'campaign_bounds',
+      'Campaign conversions <= views',
+      ($campaign_inconsistent>0 ? 'warn' : 'ok'),
+      ($campaign_inconsistent>0 ? ('Found '.number_format_i18n($campaign_inconsistent).' row(s) where conversions exceed views.') : 'No campaign conversion bound issues.')
+    );
+
+    $revenue_negative=(int)$wpdb->get_var("SELECT COUNT(*) FROM {$pfx}daily_revenue WHERE orders < 0 OR revenue < 0");
+    $coupon_negative=(int)$wpdb->get_var("SELECT COUNT(*) FROM {$pfx}daily_coupons WHERE orders < 0 OR discount_total < 0 OR revenue_total < 0");
+    $negative_total=$revenue_negative+$coupon_negative;
+    $push(
+      'negative_totals',
+      'Negative totals',
+      ($negative_total>0 ? 'fail' : 'ok'),
+      ($negative_total>0
+        ? ('revenue_negative='.$revenue_negative.', coupon_negative='.$coupon_negative)
+        : 'No negative order/revenue totals detected.')
+    );
+
+    $dup_specs=[
+      'daily_pages'=>['day','path_hash','device_class'],
+      'daily_referrers'=>['day','ref_hash'],
+      'daily_events'=>['day','event_hash','meta_hash'],
+      'daily_campaigns'=>['day','camp_hash','landing_hash'],
+      'daily_goals'=>['day','goal_id'],
+      'daily_funnels'=>['day','funnel_id','step_num'],
+      'daily_revenue'=>['day'],
+      'daily_coupons'=>['day','coupon_hash'],
+    ];
+    $dup_total=0;
+    foreach($dup_specs as $table=>$cols){
+      $group_cols=implode(',',$cols);
+      $dup_total+=(int)$wpdb->get_var("SELECT COUNT(*) FROM (SELECT {$group_cols} FROM {$pfx}{$table} GROUP BY {$group_cols} HAVING COUNT(*)>1 LIMIT 25) d");
+    }
+    $push(
+      'duplicate_keys',
+      'Duplicate aggregation keys',
+      ($dup_total>0 ? 'fail' : 'ok'),
+      ($dup_total>0 ? ('Found duplicate key groups: '.$dup_total.'.') : 'No duplicate natural-key groups detected.')
+    );
+
+    $unknown_device=(int)$wpdb->get_var($wpdb->prepare("SELECT COALESCE(SUM(count),0) FROM {$pfx}daily_pages WHERE day BETWEEN %s AND %s AND device_class='unknown'",$from,$to));
+    $all_views=(int)$wpdb->get_var($wpdb->prepare("SELECT COALESCE(SUM(count),0) FROM {$pfx}daily_pages WHERE day BETWEEN %s AND %s",$from,$to));
+    $unknown_rate=$all_views>0 ? (($unknown_device/$all_views)*100.0) : 0.0;
+    $push(
+      'unknown_device_share',
+      'Unknown device share',
+      ($unknown_rate>50.0 ? 'warn' : 'ok'),
+      ($all_views<=0
+        ? 'No pageviews in selected range.'
+        : ('Unknown device share '.number_format_i18n($unknown_rate,1).'% ('.number_format_i18n($unknown_device).' / '.number_format_i18n($all_views).').'))
+    );
+
+    $noise_ref=(int)$wpdb->get_var($wpdb->prepare(
+      "SELECT COALESCE(SUM(count),0) FROM {$pfx}daily_referrers WHERE day BETWEEN %s AND %s AND ref_domain IN ('localhost','127.0.0.1','::1')",
+      $from,$to
+    ));
+    $push(
+      'noise_referrers',
+      'Localhost referrer noise',
+      ($noise_ref>0 ? 'warn' : 'ok'),
+      ($noise_ref>0 ? ('Found '.number_format_i18n($noise_ref).' localhost-like referrer hit(s).') : 'No localhost referrer noise detected.')
+    );
+
+    $event_invalid=(int)$wpdb->get_var("SELECT COUNT(*) FROM {$pfx}daily_events WHERE event_name='' OR event_name REGEXP '[^a-z0-9_]'");
+    $push(
+      'event_name_shape',
+      'Event name format',
+      ($event_invalid>0 ? 'warn' : 'ok'),
+      ($event_invalid>0 ? ('Found '.number_format_i18n($event_invalid).' event row(s) with invalid event_name format.') : 'Event names match expected key format.')
+    );
+
+    if (count($findings)>$limit) $findings=array_slice($findings,0,$limit);
+    $status=($fail>0 ? 'fail' : ($warn>0 ? 'warn' : 'ok'));
+    return [
+      'range'=>['from'=>$from,'to'=>$to],
+      'status'=>$status,
+      'summary'=>[
+        'failed'=>$fail,
+        'warned'=>$warn,
+        'total'=>count($findings),
+      ],
+      'findings'=>$findings,
+    ];
+  }
+
   public static function health_snapshot(){
     global $wpdb; $pfx=$wpdb->prefix.'oa_';
     $tables=method_exists('OA_DB','expected_table_names') ? OA_DB::expected_table_names() : ['daily_pages','daily_referrers','daily_events','daily_campaigns','goals','daily_goals','funnels','funnel_steps','daily_funnels','daily_revenue','daily_coupons'];
@@ -815,17 +950,17 @@ class OA_Reports {
       'status'=>($schema_fail>0 ? 'fail' : ($schema_warn>0 ? 'warn' : 'ok')),
       'detail'=>($schema_fail>0 ? ($schema_fail.' table(s) failing structure checks.') : ($schema_warn>0 ? ($schema_warn.' table(s) missing secondary indexes.') : 'All structure checks passed.')),
     ];
-    $campaign_inconsistent=(int)$wpdb->get_var("SELECT COUNT(*) FROM {$pfx}daily_campaigns WHERE conversions > views");
-    $revenue_negative=(int)$wpdb->get_var("SELECT COUNT(*) FROM {$pfx}daily_revenue WHERE orders < 0 OR revenue < 0");
-    $coupon_negative=(int)$wpdb->get_var("SELECT COUNT(*) FROM {$pfx}daily_coupons WHERE orders < 0 OR discount_total < 0 OR revenue_total < 0");
-    $quality_issues=$campaign_inconsistent+$revenue_negative+$coupon_negative;
+    $quality=self::data_quality_audit($from,$to,20);
+    $quality_summary=(array)($quality['summary'] ?? []);
+    $quality_failed=max(0,intval($quality_summary['failed'] ?? 0));
+    $quality_warned=max(0,intval($quality_summary['warned'] ?? 0));
     $checks[]=[
       'key'=>'data_quality',
       'label'=>'Data quality',
-      'status'=>($quality_issues>0 ? 'warn' : 'ok'),
-      'detail'=>($quality_issues>0
-        ? ('campaign_conversions_gt_views='.$campaign_inconsistent.', revenue_negative='.$revenue_negative.', coupon_negative='.$coupon_negative)
-        : 'No baseline data consistency issues detected.'),
+      'status'=>($quality_failed>0 ? 'fail' : ($quality_warned>0 ? 'warn' : 'ok')),
+      'detail'=>($quality_failed>0 || $quality_warned>0
+        ? ('failed='.$quality_failed.', warned='.$quality_warned.' (range '.$from.' -> '.$to.')')
+        : ('No data quality issues detected for '.$from.' -> '.$to.'.')),
     ];
     return [
       'plugin_version'=>OA_VERSION,
@@ -839,6 +974,7 @@ class OA_Reports {
       'storage_total_bytes'=>$total_storage_bytes,
       'storage_largest'=>$largest_table,
       'checks'=>$checks,
+      'data_quality_audit'=>$quality,
       'migration_log'=>method_exists('OA_DB','get_migration_log') ? OA_DB::get_migration_log(12) : [],
       'schema_audit'=>$schema_audit,
       'tables'=>$table_rows,

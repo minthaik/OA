@@ -21,9 +21,12 @@ This document is the execution path to take the plugin from current state to a c
 - Retention basics page (new vs returning visitor signals + return-gap profile).
 - Health storage footprint checks + table optimization action.
 - Paged table views across core report pages for large datasets.
+- Data quality audit utilities in Health + WP-CLI.
+- Regression smoke now validates ingestion pipeline and paged report contracts.
+- Release readiness docs (checklist + troubleshooting) added.
 - Modernized admin UI foundation.
 - Regression smoke harness via WP-CLI (`regression-smoke`) and PowerShell runner.
-- Active sprint logs: `docs/SPRINT-01.md`, `docs/SPRINT-02.md`
+- Active sprint logs: `docs/SPRINT-01.md`, `docs/SPRINT-02.md`, `docs/SPRINT-03.md`
 
 ## Definition of "complete" (v1.0 gate)
 The plugin is considered complete for v1.0 when all of these are true:
@@ -164,12 +167,12 @@ Priority: P2
 
 ## P0 (must complete for v1.0)
 - [x] Migration safety toolkit and health panel.
-- [ ] Data quality audit utilities.
+- [x] Data quality audit utilities.
 - [x] Compliance helper actions and docs.
 - [x] Role/capability matrix finalization.
-- [ ] Complete UI consistency pass on all pages.
-- [ ] Core automated tests for reports and ingestion.
-- [ ] Release docs and troubleshooting guide.
+- [x] Complete UI consistency pass on all pages.
+- [x] Core automated tests for reports and ingestion.
+- [x] Release docs and troubleshooting guide.
 
 ## P1
 - [x] Global filters and saved segments.
