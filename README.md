@@ -1,4 +1,4 @@
-# Ordelix Analytics (v0.4.9)
+# Ordelix Analytics (v1.0.0)
 Privacy-first, lightweight, local-first analytics for WordPress.
 
 ## Features
